@@ -34,13 +34,34 @@ See [`supabase/README.md`](./supabase/README.md) for:
 
 ## Deploying to Hostinger
 
+### Automatic (GitHub Actions)
+
+`.github/workflows/deploy-hostinger.yml` builds the app and FTP-uploads
+`dist/` to Hostinger on every push to `main` (or manually via the Actions
+tab → "Deploy to Hostinger" → Run workflow). Add these as **GitHub repo
+secrets** (Settings → Secrets and variables → Actions) — nobody but you
+enters these, they're never visible in the workflow logs:
+
+| Secret | Value |
+|---|---|
+| `VITE_SUPABASE_URL` | `https://jonufenbiyqdscrjiowg.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | your Supabase anon key (Project Settings → API) |
+| `FTP_SERVER` | Hostinger FTP hostname (hPanel → Files → FTP Accounts) |
+| `FTP_USERNAME` | Hostinger FTP username |
+| `FTP_PASSWORD` | Hostinger FTP password |
+| `FTP_SERVER_DIR` | optional, defaults to `/public_html/` |
+
+Once those are set, every push to `main` deploys automatically.
+
+### Manual
+
 1. `npm run build` — produces a static `dist/` folder.
 2. Upload the contents of `dist/` to your Hostinger `public_html` (or
    subdomain folder) via File Manager or FTP. `public/.htaccess` is already
    included in the build output and rewrites all paths to `index.html` so
    client-side routing works.
-3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` at build time (in
-   your CI/build environment) — never commit `.env`.
+3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` at build time — never
+   commit `.env`.
 4. In the Supabase dashboard, set Auth → URL Configuration's Site URL and
    Redirect URLs to your Hostinger domain (needed for password reset links).
 
