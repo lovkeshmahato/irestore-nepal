@@ -1,0 +1,134 @@
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Plus } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import type { Vendor } from '../../types'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { Button } from '../../components/ui/Button'
+import { Card } from '../../components/ui/Card'
+import { EmptyState } from '../../components/ui/EmptyState'
+import { FullPageSpinner } from '../../components/ui/Spinner'
+import { Modal } from '../../components/ui/Modal'
+import { FormRow, Input } from '../../components/ui/Field'
+
+export function VendorsList() {
+  const navigate = useNavigate()
+  const [vendors, setVendors] = useState<Vendor[] | null>(null)
+  const [showForm, setShowForm] = useState(false)
+
+  async function load() {
+    const { data } = await supabase.from('vendors').select('*').order('name')
+    setVendors(data ?? [])
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  if (!vendors) return <FullPageSpinner />
+
+  return (
+    <div>
+      <PageHeader
+        title="Vendors"
+        description={`${vendors.length} vendors`}
+        actions={
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4" /> New Vendor
+          </Button>
+        }
+      />
+
+      <Card className="overflow-hidden">
+        {vendors.length === 0 ? (
+          <EmptyState title="No vendors yet" />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="px-4 py-3 font-medium">Contact</th>
+                  <th className="px-4 py-3 font-medium">Phone</th>
+                  <th className="px-4 py-3 font-medium">Items Supplied</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {vendors.map((v) => (
+                  <tr key={v.id} onClick={() => navigate(`/vendors/${v.id}`)} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{v.name}</td>
+                    <td className="px-4 py-3 text-slate-500">{v.contact_person ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-500">{v.phone ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-500">{v.items_supplied ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      <VendorFormModal open={showForm} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load() }} />
+    </div>
+  )
+}
+
+function VendorFormModal({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {
+  const [name, setName] = useState('')
+  const [contact, setContact] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [address, setAddress] = useState('')
+  const [items, setItems] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSubmit() {
+    if (!name.trim()) return
+    setSaving(true)
+    await supabase.from('vendors').insert({
+      name,
+      contact_person: contact || null,
+      phone: phone || null,
+      email: email || null,
+      address: address || null,
+      items_supplied: items || null,
+    })
+    setSaving(false)
+    onSaved()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="New Vendor">
+      <div className="space-y-4">
+        <FormRow label="Name" required>
+          <Input value={name} onChange={(e) => setName(e.target.value)} />
+        </FormRow>
+        <FormRow label="Contact person">
+          <Input value={contact} onChange={(e) => setContact(e.target.value)} />
+        </FormRow>
+        <div className="grid grid-cols-2 gap-4">
+          <FormRow label="Phone">
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </FormRow>
+          <FormRow label="Email">
+            <Input value={email} onChange={(e) => setEmail(e.target.value)} />
+          </FormRow>
+        </div>
+        <FormRow label="Address">
+          <Input value={address} onChange={(e) => setAddress(e.target.value)} />
+        </FormRow>
+        <FormRow label="Items supplied">
+          <Input value={items} onChange={(e) => setItems(e.target.value)} placeholder="Screens, batteries…" />
+        </FormRow>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSubmit} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
