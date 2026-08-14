@@ -4,13 +4,32 @@ import type { Settings as SettingsType } from '../../types'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
-import { FormRow, Input } from '../../components/ui/Field'
+import { FormRow, Input, Select, TextArea } from '../../components/ui/Field'
 import { FullPageSpinner } from '../../components/ui/Spinner'
+
+const EXPORT_TABLES = ['customers', 'job_sheets', 'invoices', 'payments', 'sell_requests'] as const
+
+function downloadCsv(filename: string, rows: Record<string, unknown>[]) {
+  if (rows.length === 0) {
+    rows = [{}]
+  }
+  const headers = Array.from(rows.reduce((set, r) => { Object.keys(r).forEach((k) => set.add(k)); return set }, new Set<string>()))
+  const csvRows = [headers, ...rows.map((r) => headers.map((h) => (r[h] === null || r[h] === undefined ? '' : String(r[h]))))]
+  const csv = csvRows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 export function Settings() {
   const [settings, setSettings] = useState<SettingsType | null>(null)
   const [saving, setSaving] = useState(false)
   const [savedAt, setSavedAt] = useState<number | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   async function load() {
     const { data } = await supabase.from('settings').select('*').limit(1).single()
@@ -37,6 +56,15 @@ export function Settings() {
     if (error) return
     const { data } = supabase.storage.from('business-assets').getPublicUrl(path)
     setSettings({ ...settings, logo_url: data.publicUrl })
+  }
+
+  async function handleExportAll() {
+    setExporting(true)
+    for (const table of EXPORT_TABLES) {
+      const { data } = await supabase.from(table).select('*')
+      downloadCsv(`${table}.csv`, (data ?? []) as Record<string, unknown>[])
+    }
+    setExporting(false)
   }
 
   if (!settings) return <FullPageSpinner />
@@ -66,6 +94,25 @@ export function Settings() {
             <FormRow label="PAN / VAT Number">
               <Input value={settings.pan_vat_number ?? ''} onChange={(e) => setSettings({ ...settings, pan_vat_number: e.target.value })} />
             </FormRow>
+            <div className="grid grid-cols-2 gap-4">
+              <FormRow label="Default Tax Rate (%)">
+                <Input
+                  type="number"
+                  min={0}
+                  value={settings.default_tax_rate}
+                  onChange={(e) => setSettings({ ...settings, default_tax_rate: Number(e.target.value) })}
+                />
+              </FormRow>
+              <FormRow label="Print Header Alignment">
+                <Select
+                  value={settings.print_header_alignment}
+                  onChange={(e) => setSettings({ ...settings, print_header_alignment: e.target.value as 'left' | 'center' })}
+                >
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                </Select>
+              </FormRow>
+            </div>
             <FormRow label="Logo">
               <div className="flex items-center gap-3">
                 {settings.logo_url && <img src={settings.logo_url} alt="Logo" className="h-10 w-10 rounded object-contain" />}

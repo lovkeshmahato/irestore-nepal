@@ -37,6 +37,24 @@ interface ReportData {
   repeatCustomerRate: number
 }
 
+// Section-header treatment reused from the sidebar's uppercase group labels,
+// matching the same classes Dashboard uses for its panel headers.
+const sectionLabelClasses = 'text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500'
+
+function SectionHeader({ title, subtitle, onExport }: { title: string; subtitle?: string; onExport: () => void }) {
+  return (
+    <div className="mb-4 flex items-start justify-between gap-3">
+      <div>
+        <h2 className={sectionLabelClasses}>{title}</h2>
+        {subtitle && <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>}
+      </div>
+      <Button size="sm" variant="secondary" onClick={onExport} className="shrink-0">
+        <Download className="h-3.5 w-3.5" /> Export CSV
+      </Button>
+    </div>
+  )
+}
+
 export function Reports() {
   const [preset, setPreset] = useState<RangePreset>('month')
   const [customStart, setCustomStart] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'))
@@ -194,7 +212,8 @@ export function Reports() {
     <div>
       <PageHeader title="Reports" description="Revenue, performance, and inventory insights" />
 
-      <Card className="mb-6 flex flex-wrap items-end gap-3 p-4">
+      {/* Sticky filter bar */}
+      <Card className="sticky top-20 z-20 mb-6 flex flex-wrap items-end gap-3 p-4">
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-500">Date Range</label>
           <Select value={preset} onChange={(e) => setPreset(e.target.value as RangePreset)} className="w-40">
@@ -228,222 +247,214 @@ export function Reports() {
         )}
       </Card>
 
+      {/* Summary strip — the visual anchor of the page */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Card className="p-5">
-          <p className="text-xs font-medium uppercase text-slate-400">Total Revenue (selected range)</p>
-          <p className="text-3xl font-bold text-success-600">Rs. {data.totalRevenueInRange.toLocaleString()}</p>
+        <Card className="border-t-4 border-t-success-600 p-6">
+          <p className={sectionLabelClasses}>Total Revenue (selected range)</p>
+          <p className="mt-2 text-4xl font-bold tabular-nums text-success-600 sm:text-5xl">
+            Rs. {data.totalRevenueInRange.toLocaleString()}
+          </p>
         </Card>
-        <Card className="p-5">
-          <p className="text-xs font-medium uppercase text-slate-400">Total Pending (all outstanding)</p>
-          <p className="text-3xl font-bold text-danger-600">Rs. {data.totalPendingAllTime.toLocaleString()}</p>
+        <Card className="border-t-4 border-t-danger-600 p-6">
+          <p className={sectionLabelClasses}>Total Pending (all outstanding)</p>
+          <p className="mt-2 text-4xl font-bold tabular-nums text-danger-600 sm:text-5xl">
+            Rs. {data.totalPendingAllTime.toLocaleString()}
+          </p>
         </Card>
       </div>
 
+      {/* Sectioned detail reports */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card className="p-5 lg:col-span-2">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Revenue Report</h2>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => downloadCsv('revenue-report.csv', [['Day', 'Revenue'], ...data.revenueByDay.map((r) => [r.day, r.revenue])])}
-            >
-              <Download className="h-3.5 w-3.5" /> CSV
-            </Button>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
+          <SectionHeader
+            title="Revenue Report"
+            subtitle="Daily revenue for the selected range"
+            onExport={() => downloadCsv('revenue-report.csv', [['Day', 'Revenue'], ...data.revenueByDay.map((r) => [r.day, r.revenue])])}
+          />
+          <ResponsiveContainer width="100%" height={240}>
             <BarChart data={data.revenueByDay}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="day" fontSize={11} tickLine={false} axisLine={false} />
-              <YAxis fontSize={11} tickLine={false} axisLine={false} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#94a3b8" strokeOpacity={0.25} />
+              <XAxis dataKey="day" fontSize={11} tickLine={false} axisLine={false} stroke="#94a3b8" />
+              <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94a3b8" tickFormatter={(v) => Number(v).toLocaleString()} />
               <Tooltip formatter={(v) => `Rs. ${Number(v).toLocaleString()}`} />
               <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
 
-        <Card className="p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Device Repair Trends — Models</h2>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => downloadCsv('device-trends.csv', [['Model', 'Jobs'], ...data.topDeviceModels.map((m) => [m.model, m.count])])}
-            >
-              <Download className="h-3.5 w-3.5" /> CSV
-            </Button>
+        <Card className="p-5 lg:col-span-2">
+          <SectionHeader
+            title="Device Repair Trends"
+            subtitle="Top device models and reported issues in range"
+            onExport={() =>
+              downloadCsv('device-trends.csv', [
+                ['Type', 'Name', 'Count'],
+                ...data.topDeviceModels.map((m) => ['Model', m.model, m.count]),
+                ...data.topIssues.map((i) => ['Issue', i.issue, i.count]),
+              ])
+            }
+          />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={data.topDeviceModels} layout="vertical" margin={{ left: 8, right: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#94a3b8" strokeOpacity={0.25} />
+                  <XAxis type="number" fontSize={11} tickLine={false} axisLine={false} stroke="#94a3b8" allowDecimals={false} />
+                  <YAxis type="category" dataKey="model" fontSize={11} tickLine={false} axisLine={false} width={90} stroke="#94a3b8" />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#0891b2" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <p className="mt-1 text-center text-xs text-slate-400">Top device models</p>
+            </div>
+            <div>
+              {data.topIssues.length === 0 ? (
+                <p className="text-sm text-slate-400">No job sheets in this range.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="text-left text-xs uppercase text-slate-400">
+                    <tr>
+                      <th className="pb-2">Issue</th>
+                      <th className="pb-2 text-right">Jobs</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {data.topIssues.map((i) => (
+                      <tr key={i.issue}>
+                        <td className="py-2 pr-2 text-slate-800 dark:text-slate-200">{i.issue}</td>
+                        <td className="py-2 text-right font-medium tabular-nums text-slate-500">{i.count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <p className="mt-1 text-center text-xs text-slate-400">Top reported issues</p>
+            </div>
           </div>
-          {data.topDeviceModels.length === 0 ? (
-            <p className="text-sm text-slate-400">No job sheets in this range.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {data.topDeviceModels.map((m) => (
-                  <tr key={m.model}>
-                    <td className="py-2 text-slate-800 dark:text-slate-200">{m.model}</td>
-                    <td className="py-2 text-right text-slate-500">{m.count} jobs</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
         </Card>
 
-        <Card className="p-5">
-          <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Device Repair Trends — Issues</h2>
-          {data.topIssues.length === 0 ? (
-            <p className="text-sm text-slate-400">No job sheets in this range.</p>
+        <Card className="p-5 lg:col-span-2">
+          <SectionHeader
+            title="Pending Payment Report"
+            subtitle={`Sorted oldest first · ${data.pendingInvoices.length} invoices`}
+            onExport={() =>
+              downloadCsv('pending-payments.csv', [
+                ['Invoice #', 'Customer', 'Total', 'Balance Due', 'Created'],
+                ...data.pendingInvoices.map((i) => [i.invoice_number, i.customer, i.total, i.balance_due, i.created_at]),
+              ])
+            }
+          />
+          {data.pendingInvoices.length === 0 ? (
+            <p className="text-sm text-slate-400">No outstanding invoices.</p>
           ) : (
-            <table className="w-full text-sm">
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {data.topIssues.map((i) => (
-                  <tr key={i.issue}>
-                    <td className="py-2 pr-2 text-slate-800 dark:text-slate-200">{i.issue}</td>
-                    <td className="py-2 text-right text-slate-500">{i.count}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs uppercase text-slate-400">
+                  <tr>
+                    <th className="pb-2">Invoice #</th>
+                    <th className="pb-2">Customer</th>
+                    <th className="pb-2">Created</th>
+                    <th className="pb-2 text-right">Balance Due</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {data.pendingInvoices.map((i) => (
+                    <tr key={i.id}>
+                      <td className="py-2 text-slate-800 dark:text-slate-200">{i.invoice_number}</td>
+                      <td className="py-2 text-slate-500">{i.customer}</td>
+                      <td className="py-2 text-slate-500">{new Date(i.created_at).toLocaleDateString()}</td>
+                      <td className="py-2 text-right font-semibold tabular-nums text-danger-600">Rs. {i.balance_due.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-slate-200 font-semibold dark:border-slate-700">
+                    <td colSpan={3} className="py-2 text-slate-700 dark:text-slate-200">
+                      Total Pending
+                    </td>
+                    <td className="py-2 text-right tabular-nums text-danger-600">
+                      Rs. {data.pendingInvoices.reduce((s, i) => s + i.balance_due, 0).toLocaleString()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           )}
         </Card>
 
         <Card className="p-5 lg:col-span-2">
-          <div className="mb-3 flex items-center justify-between">
+          <SectionHeader
+            title="Inventory Report"
+            subtitle="Stock levels, low-stock flags, and parts consumption"
+            onExport={() =>
+              downloadCsv('inventory-report.csv', [
+                ['Part', 'Stock Qty', 'Reorder Threshold', 'Quantity Used In Range'],
+                ...data.parts.map((p) => [
+                  p.name,
+                  p.stock_qty,
+                  p.reorder_threshold,
+                  data.partsConsumption.find((c) => c.name === p.name)?.quantity ?? 0,
+                ]),
+              ])
+            }
+          />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
-              <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Pending Payment Report</h2>
-              <p className="text-xs text-slate-400">Sorted oldest first · {data.pendingInvoices.length} invoices</p>
+              <h3 className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">Stock Levels</h3>
+              {lowStockParts.length > 0 && (
+                <p className="mb-2 text-sm text-danger-600">{lowStockParts.length} part(s) at or below reorder threshold</p>
+              )}
+              <div className="max-h-64 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {data.parts.map((p) => (
+                      <tr key={p.id}>
+                        <td className="py-2 text-slate-800 dark:text-slate-200">{p.name}</td>
+                        <td className="py-2 text-right">
+                          {p.stock_qty <= p.reorder_threshold ? (
+                            <Badge tone="danger">{p.stock_qty} left</Badge>
+                          ) : (
+                            <span className="tabular-nums text-slate-500">{p.stock_qty} in stock</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                downloadCsv('pending-payments.csv', [
-                  ['Invoice #', 'Customer', 'Total', 'Balance Due', 'Created'],
-                  ...data.pendingInvoices.map((i) => [i.invoice_number, i.customer, i.total, i.balance_due, i.created_at]),
-                ])
-              }
-            >
-              <Download className="h-3.5 w-3.5" /> CSV
-            </Button>
+            <div>
+              <h3 className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">Parts Consumption (selected range)</h3>
+              {data.partsConsumption.length === 0 ? (
+                <p className="text-sm text-slate-400">No parts used in this range.</p>
+              ) : (
+                <div className="max-h-64 overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {data.partsConsumption.map((p) => (
+                        <tr key={p.name}>
+                          <td className="py-2 text-slate-800 dark:text-slate-200">{p.name}</td>
+                          <td className="py-2 text-right tabular-nums text-slate-500">{p.quantity} used</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
-          {data.pendingInvoices.length === 0 ? (
-            <p className="text-sm text-slate-400">No outstanding invoices.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs uppercase text-slate-400">
-                <tr>
-                  <th className="pb-2">Invoice #</th>
-                  <th className="pb-2">Customer</th>
-                  <th className="pb-2">Created</th>
-                  <th className="pb-2 text-right">Balance Due</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {data.pendingInvoices.map((i) => (
-                  <tr key={i.id}>
-                    <td className="py-2 text-slate-800 dark:text-slate-200">{i.invoice_number}</td>
-                    <td className="py-2 text-slate-500">{i.customer}</td>
-                    <td className="py-2 text-slate-500">{new Date(i.created_at).toLocaleDateString()}</td>
-                    <td className="py-2 text-right font-medium text-danger-600">Rs. {i.balance_due.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-slate-200 font-semibold dark:border-slate-700">
-                  <td colSpan={3} className="py-2 text-slate-700 dark:text-slate-200">
-                    Total Pending
-                  </td>
-                  <td className="py-2 text-right text-danger-600">
-                    Rs. {data.pendingInvoices.reduce((s, i) => s + i.balance_due, 0).toLocaleString()}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          )}
         </Card>
 
         <Card className="p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Inventory Report — Stock Levels</h2>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                downloadCsv('inventory-stock.csv', [
-                  ['Part', 'Stock Qty', 'Reorder Threshold'],
-                  ...data.parts.map((p) => [p.name, p.stock_qty, p.reorder_threshold]),
-                ])
-              }
-            >
-              <Download className="h-3.5 w-3.5" /> CSV
-            </Button>
-          </div>
-          {lowStockParts.length > 0 && (
-            <p className="mb-2 text-sm text-danger-600">{lowStockParts.length} part(s) at or below reorder threshold</p>
-          )}
-          <table className="w-full text-sm">
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {data.parts.map((p) => (
-                <tr key={p.id}>
-                  <td className="py-2 text-slate-800 dark:text-slate-200">{p.name}</td>
-                  <td className="py-2 text-right">
-                    {p.stock_qty <= p.reorder_threshold ? (
-                      <Badge tone="danger">{p.stock_qty} left</Badge>
-                    ) : (
-                      <span className="text-slate-500">{p.stock_qty} in stock</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-
-        <Card className="p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Inventory Report — Parts Consumption</h2>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                downloadCsv('parts-consumption.csv', [['Part', 'Quantity Used'], ...data.partsConsumption.map((p) => [p.name, p.quantity])])
-              }
-            >
-              <Download className="h-3.5 w-3.5" /> CSV
-            </Button>
-          </div>
-          {data.partsConsumption.length === 0 ? (
-            <p className="text-sm text-slate-400">No parts used in this range.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {data.partsConsumption.map((p) => (
-                  <tr key={p.name}>
-                    <td className="py-2 text-slate-800 dark:text-slate-200">{p.name}</td>
-                    <td className="py-2 text-right text-slate-500">{p.quantity} used</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Card>
-
-        <Card className="p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Technician Leaderboard</h2>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                downloadCsv('technician-leaderboard.csv', [
-                  ['Technician', 'Jobs Closed', 'Avg Turnaround (days)'],
-                  ...data.technicianLeaderboard.map((t) => [t.name, t.jobsClosed, t.avgTurnaroundDays]),
-                ])
-              }
-            >
-              <Download className="h-3.5 w-3.5" /> CSV
-            </Button>
-          </div>
+          <SectionHeader
+            title="Technician Leaderboard"
+            onExport={() =>
+              downloadCsv('technician-leaderboard.csv', [
+                ['Technician', 'Jobs Closed', 'Avg Turnaround (days)'],
+                ...data.technicianLeaderboard.map((t) => [t.name, t.jobsClosed, t.avgTurnaroundDays]),
+              ])
+            }
+          />
           {data.technicianLeaderboard.length === 0 ? (
             <p className="text-sm text-slate-400">No jobs delivered in this range.</p>
           ) : (
@@ -459,8 +470,8 @@ export function Reports() {
                 {data.technicianLeaderboard.map((t) => (
                   <tr key={t.name}>
                     <td className="py-2 text-slate-800 dark:text-slate-200">{t.name}</td>
-                    <td className="py-2 text-slate-500">{t.jobsClosed}</td>
-                    <td className="py-2 text-slate-500">{t.avgTurnaroundDays} days</td>
+                    <td className="py-2 tabular-nums text-slate-500">{t.jobsClosed}</td>
+                    <td className="py-2 tabular-nums text-slate-500">{t.avgTurnaroundDays} days</td>
                   </tr>
                 ))}
               </tbody>
@@ -469,22 +480,17 @@ export function Reports() {
         </Card>
 
         <Card className="p-5">
-          <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Customer Loyalty</h2>
-          <p className="text-3xl font-semibold text-slate-900 dark:text-slate-50">{data.repeatCustomerRate}%</p>
+          <h2 className={sectionLabelClasses}>Customer Loyalty</h2>
+          <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900 dark:text-slate-50">{data.repeatCustomerRate}%</p>
           <p className="text-sm text-slate-500">repeat customer rate (all-time)</p>
         </Card>
 
         <Card className="p-5 lg:col-span-2">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Profit Margin per Job (Invoice − Parts Cost)</h2>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => downloadCsv('profit-by-job.csv', [['Job Sheet ID', 'Profit'], ...data.profitByJob.map((p) => [p.jobNumber, p.profit])])}
-            >
-              <Download className="h-3.5 w-3.5" /> CSV
-            </Button>
-          </div>
+          <SectionHeader
+            title="Profit Margin per Job"
+            subtitle="Invoice total minus parts cost"
+            onExport={() => downloadCsv('profit-by-job.csv', [['Job Sheet ID', 'Profit'], ...data.profitByJob.map((p) => [p.jobNumber, p.profit])])}
+          />
           <p className="text-sm text-slate-500">{data.profitByJob.length} invoiced jobs in this range. Export CSV for full detail.</p>
         </Card>
       </div>

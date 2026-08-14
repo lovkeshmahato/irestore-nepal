@@ -3,12 +3,13 @@ import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { Invoice, Payment } from '../types'
 import { FullPageSpinner } from '../components/ui/Spinner'
-import { PrintLayout } from './PrintLayout'
+import { PrintLayout, usePrintSettings } from './PrintLayout'
 
 export function InvoicePrint() {
   const { id } = useParams()
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
+  const settings = usePrintSettings()
 
   useEffect(() => {
     if (!id) return
@@ -30,6 +31,7 @@ export function InvoicePrint() {
       showAddress={invoice.doc_show_address}
       showPhone={invoice.doc_show_phone}
       showEmail={invoice.doc_show_email}
+      alignment={settings?.print_header_alignment}
     >
       <div className="mb-4 flex items-start justify-between print:text-black">
         <div>
@@ -123,10 +125,11 @@ export function InvoicePrint() {
         </div>
       )}
 
-      <p className="mt-6 border-t border-slate-200 pt-3 text-xs text-slate-400 print:text-black">
-        This invoice is issued by an independent, non-authorized Apple repair centre. Prices are inclusive of any
-        applicable VAT as noted above. Thank you for your business.
-      </p>
+      {settings?.terms_conditions_text && (
+        <p className="mt-6 border-t border-slate-200 pt-3 text-[10px] leading-relaxed text-slate-400 print:text-black">
+          <span className="font-semibold">Terms & Conditions:</span> {settings.terms_conditions_text}
+        </p>
+      )}
     </PrintLayout>
   )
 }

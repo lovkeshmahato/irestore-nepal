@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Wrench, Search, Check } from 'lucide-react'
 import clsx from 'clsx'
 import { supabase } from '../../lib/supabase'
@@ -19,16 +20,19 @@ interface TrackResult {
 }
 
 export function TrackRepair() {
-  const [query, setQuery] = useState('')
+  const [params] = useSearchParams()
+  const jobParam = params.get('job')
+  const [query, setQuery] = useState(jobParam ?? '')
   const [results, setResults] = useState<TrackResult[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleSearch() {
-    if (!query.trim()) return
+  async function handleSearch(overrideQuery?: string) {
+    const q = (overrideQuery ?? query).trim()
+    if (!q) return
     setLoading(true)
     setError(null)
-    const { data, error } = await supabase.rpc('track_repair', { p_query: query.trim() })
+    const { data, error } = await supabase.rpc('track_repair', { p_query: q })
     setLoading(false)
     if (error) {
       setError(error.message)
@@ -36,6 +40,11 @@ export function TrackRepair() {
     }
     setResults(data ?? [])
   }
+
+  useEffect(() => {
+    if (jobParam) handleSearch(jobParam)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobParam])
 
   function publicStepIndex(status: JobStatus) {
     if (status === 'declined') return -1
@@ -64,7 +73,7 @@ export function TrackRepair() {
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
-            <Button onClick={handleSearch} disabled={loading}>
+            <Button onClick={() => handleSearch()} disabled={loading}>
               <Search className="h-4 w-4" />
             </Button>
           </div>

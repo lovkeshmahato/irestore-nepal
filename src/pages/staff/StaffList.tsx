@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { Profile, UserRole } from '../../types'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -27,6 +27,8 @@ export function StaffList() {
   const [staff, setStaff] = useState<Profile[] | null>(null)
   const [performance, setPerformance] = useState<StaffPerformance[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [editingStaff, setEditingStaff] = useState<Profile | null>(null)
+  const [deletingStaff, setDeletingStaff] = useState<Profile | null>(null)
 
   async function load() {
     const { data } = await supabase.from('profiles').select('*').order('full_name')
@@ -79,6 +81,7 @@ export function StaffList() {
                 <th className="px-4 py-3 font-medium">Jobs Completed</th>
                 <th className="px-4 py-3 font-medium">Commission %</th>
                 <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -104,6 +107,24 @@ export function StaffList() {
                       <Badge tone={p.is_active ? 'success' : 'danger'}>{p.is_active ? 'Active' : 'Disabled'}</Badge>
                     </button>
                   </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setEditingStaff(p)}
+                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+                        title="Edit"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeletingStaff(p)}
+                        className="rounded-lg p-1.5 text-slate-400 hover:bg-danger-50 hover:text-danger-600 dark:hover:bg-danger-600/20"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -114,6 +135,22 @@ export function StaffList() {
       <AttendanceToday staff={staff} />
 
       <NewStaffModal open={showForm} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load() }} />
+      <EditStaffModal
+        staff={editingStaff}
+        onClose={() => setEditingStaff(null)}
+        onSaved={() => {
+          setEditingStaff(null)
+          load()
+        }}
+      />
+      <DeleteStaffModal
+        staff={deletingStaff}
+        onClose={() => setDeletingStaff(null)}
+        onDeleted={() => {
+          setDeletingStaff(null)
+          load()
+        }}
+      />
     </div>
   )
 }
@@ -215,6 +252,176 @@ function NewStaffModal({ open, onClose, onSaved }: { open: boolean; onClose: () 
           </Button>
           <Button type="button" onClick={handleSubmit} disabled={saving}>
             {saving ? 'Creating…' : 'Create Account'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function EditStaffModal({
+  staff,
+  onClose,
+  onSaved,
+}: {
+  staff: Profile | null
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [fullName, setFullName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [role, setRole] = useState<UserRole>('front_desk')
+  const [isActive, setIsActive] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!staff) return
+    setFullName(staff.full_name)
+    setPhone(staff.phone ?? '')
+    setRole(staff.role)
+    setIsActive(staff.is_active)
+    setError(null)
+  }, [staff])
+
+  async function handleSubmit() {
+    if (!staff) return
+    if (!fullName.trim()) {
+      setError('Full name is required.')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    const { error } = await supabase
+      .from('profiles')
+      .update({ full_name: fullName, role, phone: phone || null, is_active: isActive })
+      .eq('id', staff.id)
+    setSaving(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    onSaved()
+  }
+
+  return (
+    <Modal open={!!staff} onClose={onClose} title="Edit Staff Account">
+      <div className="space-y-4">
+        <FormRow label="Full name" required>
+          <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        </FormRow>
+        <FormRow label="Phone">
+          <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+        </FormRow>
+        <FormRow label="Role" required>
+          <Select value={role} onChange={(e) => setRole(e.target.value as UserRole)}>
+            {Object.entries(ROLE_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </Select>
+        </FormRow>
+        <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+          <input
+            type="checkbox"
+            checked={isActive}
+            onChange={(e) => setIsActive(e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 text-primary-600"
+          />
+          Active (can sign in and access the system)
+        </label>
+        {error && <p className="text-sm text-danger-600">{error}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSubmit} disabled={saving}>
+            {saving ? 'Saving…' : 'Save Changes'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function DeleteStaffModal({
+  staff,
+  onClose,
+  onDeleted,
+}: {
+  staff: Profile | null
+  onClose: () => void
+  onDeleted: () => void
+}) {
+  const [working, setWorking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<string | null>(null)
+
+  useEffect(() => {
+    setError(null)
+    setResult(null)
+  }, [staff])
+
+  async function handleConfirm() {
+    if (!staff) return
+    setWorking(true)
+    setError(null)
+    setResult(null)
+
+    const [{ count: jobCount, error: jobError }, { count: attCount, error: attError }] = await Promise.all([
+      supabase
+        .from('job_sheets')
+        .select('id', { count: 'exact', head: true })
+        .or(`assigned_technician_id.eq.${staff.id},created_by.eq.${staff.id}`),
+      supabase.from('staff_attendance').select('id', { count: 'exact', head: true }).eq('staff_id', staff.id),
+    ])
+
+    if (jobError || attError) {
+      setWorking(false)
+      setError((jobError ?? attError)?.message ?? 'Could not check linked records.')
+      return
+    }
+
+    const hasLinkedRecords = (jobCount ?? 0) > 0 || (attCount ?? 0) > 0
+
+    if (hasLinkedRecords) {
+      const { error } = await supabase.from('profiles').update({ is_active: false }).eq('id', staff.id)
+      setWorking(false)
+      if (error) {
+        setError(error.message)
+        return
+      }
+      setResult('deactivated')
+      onDeleted()
+      return
+    }
+
+    const { error } = await supabase.from('profiles').delete().eq('id', staff.id)
+    setWorking(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    setResult('deleted')
+    onDeleted()
+  }
+
+  return (
+    <Modal open={!!staff} onClose={onClose} title="Remove Staff Access" size="sm">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          This will remove {staff?.full_name}&apos;s access. Existing job sheets they worked on stay in history. If they have
+          no linked records, their account will be permanently deleted — otherwise it will be deactivated.
+        </p>
+        {error && <p className="text-sm text-danger-600">{error}</p>}
+        {result && <p className="text-sm text-success-600">{result === 'deleted' ? 'Account deleted.' : 'Account deactivated.'}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" variant="danger" onClick={handleConfirm} disabled={working || !!result}>
+            {working ? 'Working…' : 'Confirm'}
           </Button>
         </div>
       </div>

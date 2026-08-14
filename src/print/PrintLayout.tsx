@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Printer } from 'lucide-react'
+import clsx from 'clsx'
 import { supabase } from '../lib/supabase'
 import type { Settings } from '../types'
 import { Button } from '../components/ui/Button'
@@ -19,6 +20,7 @@ export function PrintLayout({
   showAddress = true,
   showPhone = true,
   showEmail = true,
+  alignment = 'left',
 }: {
   title: string
   children: ReactNode
@@ -26,6 +28,7 @@ export function PrintLayout({
   showAddress?: boolean
   showPhone?: boolean
   showEmail?: boolean
+  alignment?: 'left' | 'center'
 }) {
   const settings = usePrintSettings()
 
@@ -38,8 +41,13 @@ export function PrintLayout({
       </div>
 
       <div id="printable-area" className="mx-auto max-w-3xl bg-white p-8 shadow-sm print:shadow-none dark:bg-slate-900 print:dark:bg-white">
-        <div className="mb-6 flex items-start justify-between border-b border-slate-200 pb-4 print:text-black">
-          <div className="flex items-center gap-3">
+        <div
+          className={clsx(
+            'mb-6 border-b border-slate-200 pb-4 print:text-black',
+            alignment === 'center' ? 'flex flex-col items-center gap-2 text-center' : 'flex items-start justify-between'
+          )}
+        >
+          <div className={clsx('flex items-center gap-3', alignment === 'center' && 'flex-col text-center')}>
             {showLogo && settings?.logo_url && <img src={settings.logo_url} alt="" className="h-12 w-12 object-contain" />}
             <div>
               <h1 className="text-lg font-bold text-slate-900 print:text-black dark:text-slate-50">

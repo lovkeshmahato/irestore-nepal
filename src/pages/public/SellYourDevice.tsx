@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Wrench, CheckCircle2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { DEVICE_ISSUE_OPTIONS } from '../../types'
 import { Button } from '../../components/ui/Button'
 import { FormRow, Input, Select, TextArea } from '../../components/ui/Field'
 import { ChipSelect } from '../../components/ui/ChipSelect'
@@ -28,6 +29,8 @@ export function SellYourDevice() {
   const [storage, setStorage] = useState('')
   const [condition, setCondition] = useState<Record<string, boolean>>({})
   const [accessories, setAccessories] = useState<string[]>([])
+  const [deviceIssues, setDeviceIssues] = useState<string[]>([])
+  const [issueDetails, setIssueDetails] = useState('')
   const [details, setDetails] = useState('')
   const [photos, setPhotos] = useState<UploadedPhoto[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -58,6 +61,8 @@ export function SellYourDevice() {
         storage_capacity: storage || null,
         condition_self_report: condition,
         accessories,
+        device_issues: deviceIssues,
+        issue_details: issueDetails || null,
         additional_details: details || null,
       })
       if (reqError) throw reqError
@@ -153,6 +158,19 @@ export function SellYourDevice() {
 
               <FormRow label="Accessories included">
                 <ChipSelect options={ACCESSORY_OPTIONS} value={accessories} onChange={setAccessories} />
+              </FormRow>
+
+              <FormRow label="Device Issue / Damage Details">
+                <ChipSelect options={[...DEVICE_ISSUE_OPTIONS]} value={deviceIssues} onChange={setDeviceIssues} />
+              </FormRow>
+
+              <FormRow label="Describe the issue(s)">
+                <TextArea
+                  rows={2}
+                  value={issueDetails}
+                  onChange={(e) => setIssueDetails(e.target.value)}
+                  placeholder="e.g. crack in bottom-left corner of screen, battery drains fast"
+                />
               </FormRow>
 
               <FormRow label="Additional details">

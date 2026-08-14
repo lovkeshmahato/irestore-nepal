@@ -14,11 +14,20 @@ import { FormRow, Input } from '../../components/ui/Field'
 export function VendorsList() {
   const navigate = useNavigate()
   const [vendors, setVendors] = useState<Vendor[] | null>(null)
+  const [outstanding, setOutstanding] = useState<Record<string, number>>({})
   const [showForm, setShowForm] = useState(false)
 
   async function load() {
-    const { data } = await supabase.from('vendors').select('*').order('name')
+    const [{ data }, { data: pos }] = await Promise.all([
+      supabase.from('vendors').select('*').order('name'),
+      supabase.from('purchase_orders').select('vendor_id, total_amount, amount_paid, status').neq('status', 'cancelled'),
+    ])
     setVendors(data ?? [])
+    const totals: Record<string, number> = {}
+    for (const po of pos ?? []) {
+      totals[po.vendor_id] = (totals[po.vendor_id] ?? 0) + Math.max(po.total_amount - po.amount_paid, 0)
+    }
+    setOutstanding(totals)
   }
 
   useEffect(() => {
@@ -51,17 +60,24 @@ export function VendorsList() {
                   <th className="px-4 py-3 font-medium">Contact</th>
                   <th className="px-4 py-3 font-medium">Phone</th>
                   <th className="px-4 py-3 font-medium">Items Supplied</th>
+                  <th className="px-4 py-3 font-medium">Outstanding</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {vendors.map((v) => (
-                  <tr key={v.id} onClick={() => navigate(`/vendors/${v.id}`)} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{v.name}</td>
-                    <td className="px-4 py-3 text-slate-500">{v.contact_person ?? '—'}</td>
-                    <td className="px-4 py-3 text-slate-500">{v.phone ?? '—'}</td>
-                    <td className="px-4 py-3 text-slate-500">{v.items_supplied ?? '—'}</td>
-                  </tr>
-                ))}
+                {vendors.map((v) => {
+                  const due = outstanding[v.id] ?? 0
+                  return (
+                    <tr key={v.id} onClick={() => navigate(`/vendors/${v.id}`)} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{v.name}</td>
+                      <td className="px-4 py-3 text-slate-500">{v.contact_person ?? '—'}</td>
+                      <td className="px-4 py-3 text-slate-500">{v.phone ?? '—'}</td>
+                      <td className="px-4 py-3 text-slate-500">{v.items_supplied ?? '—'}</td>
+                      <td className={`px-4 py-3 font-medium ${due > 0 ? 'text-danger-600' : 'text-success-600'}`}>
+                        Rs. {due.toLocaleString()}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
