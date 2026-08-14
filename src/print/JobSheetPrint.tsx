@@ -180,6 +180,29 @@ export function JobSheetPrint() {
               <p className="text-center text-[8px] text-slate-400 print:text-black">Scan for Status</p>
             </div>
           </div>
+
+          {(job.passcode || job.icloud_account || job.security_notes) && (
+            <div className="mt-2 rounded border border-dashed border-warning-600 bg-warning-50 p-2 text-xs print:border-black print:bg-white print:text-black dark:bg-warning-600/10">
+              <p className="mb-1 text-[9px] font-semibold uppercase tracking-wide text-warning-700 print:text-black">
+                Security Details — Internal Use Only
+              </p>
+              {job.passcode && (
+                <p className="text-slate-800 print:text-black dark:text-slate-200">
+                  <span className="font-semibold">Passcode:</span> {job.passcode}
+                </p>
+              )}
+              {job.icloud_account && (
+                <p className="text-slate-800 print:text-black dark:text-slate-200">
+                  <span className="font-semibold">iCloud/Apple ID:</span> {job.icloud_account}
+                </p>
+              )}
+              {job.security_notes && (
+                <p className="text-slate-800 print:text-black dark:text-slate-200">
+                  <span className="font-semibold">Notes:</span> {job.security_notes}
+                </p>
+              )}
+            </div>
+          )}
         </section>
       </div>
     </div>
