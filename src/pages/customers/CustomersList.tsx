@@ -69,34 +69,53 @@ export function CustomersList() {
         {customers.length === 0 ? (
           <EmptyState title="No customers found" description="Add your first customer to get started." />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Phone</th>
-                  <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">Added</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {customers.map((c) => (
-                  <tr
-                    key={c.id}
-                    onClick={() => navigate(`/customers/${c.id}`)}
-                    className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                  >
-                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{c.full_name}</td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{c.phone}</td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{c.email ?? '—'}</td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                      {new Date(c.created_at).toLocaleDateString()}
-                    </td>
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Name</th>
+                    <th className="px-4 py-3 font-medium">Phone</th>
+                    <th className="hidden px-4 py-3 font-medium lg:table-cell">Email</th>
+                    <th className="hidden px-4 py-3 font-medium lg:table-cell">Added</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {customers.map((c) => (
+                    <tr
+                      key={c.id}
+                      onClick={() => navigate(`/customers/${c.id}`)}
+                      className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    >
+                      <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{c.full_name}</td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{c.phone}</td>
+                      <td className="hidden px-4 py-3 text-slate-500 lg:table-cell dark:text-slate-400">{c.email ?? '—'}</td>
+                      <td className="hidden px-4 py-3 text-slate-500 lg:table-cell dark:text-slate-400">
+                        {new Date(c.created_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
+              {customers.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => navigate(`/customers/${c.id}`)}
+                  className="cursor-pointer p-4 active:bg-slate-50 dark:active:bg-slate-800/50"
+                >
+                  <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{c.full_name}</div>
+                  <div className="mt-1.5 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+                    <div>{c.phone}</div>
+                    {c.email && <div>{c.email}</div>}
+                    <div>Added {new Date(c.created_at).toLocaleDateString()}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </Card>
 

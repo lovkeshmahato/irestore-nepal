@@ -86,46 +86,73 @@ export function JobSheetsList() {
         {jobs.length === 0 ? (
           <EmptyState title="No job sheets found" />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Job #</th>
-                  <th className="px-4 py-3 font-medium">Customer</th>
-                  <th className="px-4 py-3 font-medium">Device</th>
-                  <th className="px-4 py-3 font-medium">Priority</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Created</th>
-                  <th className="px-4 py-3 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {jobs.map((job) => (
-                  <tr
-                    key={job.id}
-                    onClick={() => navigate(`/job-sheets/${job.id}`)}
-                    className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                  >
-                    <td className="px-4 py-3 font-medium text-primary-600">{job.job_number}</td>
-                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{job.customers?.full_name}</td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{job.devices?.model}</td>
-                    <td className="px-4 py-3">
-                      {job.priority !== 'normal' && (
-                        <Badge tone={job.priority === 'urgent' ? 'danger' : 'warning'}>{JOB_PRIORITY_LABELS[job.priority]}</Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={job.status} kind="job" label={JOB_STATUS_LABELS[job.status]} />
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{new Date(job.created_at).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-right">
-                      <QrCode className="ml-auto h-4 w-4 text-slate-300" />
-                    </td>
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Job #</th>
+                    <th className="px-4 py-3 font-medium">Customer</th>
+                    <th className="px-4 py-3 font-medium">Device</th>
+                    <th className="hidden px-4 py-3 font-medium lg:table-cell">Priority</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="hidden px-4 py-3 font-medium lg:table-cell">Created</th>
+                    <th className="hidden px-4 py-3 font-medium lg:table-cell"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {jobs.map((job) => (
+                    <tr
+                      key={job.id}
+                      onClick={() => navigate(`/job-sheets/${job.id}`)}
+                      className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    >
+                      <td className="px-4 py-3 font-medium text-primary-600">{job.job_number}</td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{job.customers?.full_name}</td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{job.devices?.model}</td>
+                      <td className="hidden px-4 py-3 lg:table-cell">
+                        {job.priority !== 'normal' && (
+                          <Badge tone={job.priority === 'urgent' ? 'danger' : 'warning'}>{JOB_PRIORITY_LABELS[job.priority]}</Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={job.status} kind="job" label={JOB_STATUS_LABELS[job.status]} />
+                      </td>
+                      <td className="hidden px-4 py-3 text-slate-500 lg:table-cell dark:text-slate-400">{new Date(job.created_at).toLocaleDateString()}</td>
+                      <td className="hidden px-4 py-3 text-right lg:table-cell">
+                        <QrCode className="ml-auto h-4 w-4 text-slate-300" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
+              {jobs.map((job) => (
+                <div
+                  key={job.id}
+                  onClick={() => navigate(`/job-sheets/${job.id}`)}
+                  className="cursor-pointer p-4 active:bg-slate-50 dark:active:bg-slate-800/50"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-sm font-semibold text-primary-600">{job.job_number}</span>
+                    <StatusBadge status={job.status} kind="job" label={JOB_STATUS_LABELS[job.status]} />
+                  </div>
+                  <div className="mt-1.5 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+                    <div>{job.customers?.full_name}</div>
+                    <div>{job.devices?.model}</div>
+                    <div>{new Date(job.created_at).toLocaleDateString()}</div>
+                  </div>
+                  {job.priority !== 'normal' && (
+                    <div className="mt-2">
+                      <Badge tone={job.priority === 'urgent' ? 'danger' : 'warning'}>{JOB_PRIORITY_LABELS[job.priority]}</Badge>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </Card>
     </div>

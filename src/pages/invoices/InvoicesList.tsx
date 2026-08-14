@@ -78,38 +78,62 @@ export function InvoicesList() {
         {invoices.length === 0 ? (
           <EmptyState title="No invoices found" />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Invoice #</th>
-                  <th className="px-4 py-3 font-medium">Customer</th>
-                  <th className="px-4 py-3 font-medium">Total</th>
-                  <th className="px-4 py-3 font-medium">Balance Due</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {invoices.map((inv) => (
-                  <tr
-                    key={inv.id}
-                    onClick={() => navigate(`/invoices/${inv.id}`)}
-                    className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                  >
-                    <td className="px-4 py-3 font-medium text-primary-600">{inv.invoice_number}</td>
-                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{inv.customers?.full_name}</td>
-                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300">Rs. {inv.total.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300">Rs. {inv.balance_due.toLocaleString()}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={inv.status} kind="invoice" label={STATUS_LABELS[inv.status]} />
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{new Date(inv.created_at).toLocaleDateString()}</td>
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Invoice #</th>
+                    <th className="px-4 py-3 font-medium">Customer</th>
+                    <th className="px-4 py-3 font-medium">Total</th>
+                    <th className="hidden px-4 py-3 font-medium lg:table-cell">Balance Due</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="hidden px-4 py-3 font-medium lg:table-cell">Date</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {invoices.map((inv) => (
+                    <tr
+                      key={inv.id}
+                      onClick={() => navigate(`/invoices/${inv.id}`)}
+                      className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    >
+                      <td className="px-4 py-3 font-medium text-primary-600">{inv.invoice_number}</td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{inv.customers?.full_name}</td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">Rs. {inv.total.toLocaleString()}</td>
+                      <td className="hidden px-4 py-3 text-slate-700 lg:table-cell dark:text-slate-300">Rs. {inv.balance_due.toLocaleString()}</td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={inv.status} kind="invoice" label={STATUS_LABELS[inv.status]} />
+                      </td>
+                      <td className="hidden px-4 py-3 text-slate-500 lg:table-cell dark:text-slate-400">{new Date(inv.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
+              {invoices.map((inv) => (
+                <div
+                  key={inv.id}
+                  onClick={() => navigate(`/invoices/${inv.id}`)}
+                  className="cursor-pointer p-4 active:bg-slate-50 dark:active:bg-slate-800/50"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-sm font-semibold text-primary-600">{inv.invoice_number}</span>
+                    <StatusBadge status={inv.status} kind="invoice" label={STATUS_LABELS[inv.status]} />
+                  </div>
+                  <div className="mt-1.5 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+                    <div>{inv.customers?.full_name}</div>
+                    <div>
+                      Total Rs. {inv.total.toLocaleString()} &middot; Due Rs. {inv.balance_due.toLocaleString()}
+                    </div>
+                    <div>{new Date(inv.created_at).toLocaleDateString()}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </Card>
     </div>

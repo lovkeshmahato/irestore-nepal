@@ -24,8 +24,8 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 via-primary-50 to-slate-100 p-4 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-lg dark:border-slate-800 dark:bg-slate-900">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 via-primary-50 to-slate-100 p-0 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 sm:p-4">
+      <div className="w-full max-w-sm bg-white p-6 dark:bg-slate-900 sm:rounded-xl sm:border sm:border-slate-200 sm:p-8 sm:shadow-lg sm:dark:border-slate-800">
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-600 text-white">
             <Wrench className="h-6 w-6" />
