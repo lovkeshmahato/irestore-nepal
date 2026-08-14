@@ -84,7 +84,10 @@ export function InvoiceNew() {
       .select('*')
       .limit(1)
       .single()
-      .then(({ data }) => setSettings(data as Settings))
+      .then(({ data }) => {
+        setSettings(data as Settings)
+        if (data?.default_tax_rate != null) setTaxRate(data.default_tax_rate)
+      })
   }, [])
 
   // Preselect job sheet from query param (e.g. "Generate Invoice" from a job sheet detail page)

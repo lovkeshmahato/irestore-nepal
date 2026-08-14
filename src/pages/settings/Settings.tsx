@@ -146,10 +146,37 @@ export function Settings() {
               <FormRow label="Job Sheet Prefix">
                 <Input value={settings.job_sheet_prefix} onChange={(e) => setSettings({ ...settings, job_sheet_prefix: e.target.value })} />
               </FormRow>
+              <FormRow label="Job Sheet Next Number">
+                <Input
+                  type="number"
+                  min={1}
+                  value={settings.job_sheet_next_number}
+                  onChange={(e) => setSettings({ ...settings, job_sheet_next_number: Number(e.target.value) })}
+                />
+              </FormRow>
               <FormRow label="Invoice Prefix">
                 <Input value={settings.invoice_prefix} onChange={(e) => setSettings({ ...settings, invoice_prefix: e.target.value })} />
               </FormRow>
+              <FormRow label="Invoice Next Number">
+                <Input
+                  type="number"
+                  min={1}
+                  value={settings.invoice_next_number}
+                  onChange={(e) => setSettings({ ...settings, invoice_next_number: Number(e.target.value) })}
+                />
+              </FormRow>
             </div>
+          </Card>
+
+          <Card className="p-5">
+            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Terms & Conditions</h2>
+            <FormRow label="Printed on invoices, job sheets, and warranty cards">
+              <TextArea
+                rows={5}
+                value={settings.terms_conditions_text ?? ''}
+                onChange={(e) => setSettings({ ...settings, terms_conditions_text: e.target.value })}
+              />
+            </FormRow>
           </Card>
 
           <Card className="p-5">
@@ -170,6 +197,16 @@ export function Settings() {
                 />
               </FormRow>
             </div>
+          </Card>
+
+          <Card className="p-5">
+            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Backup / Export</h2>
+            <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
+              Downloads customers, job sheets, invoices, payments, and sell requests as separate CSV files.
+            </p>
+            <Button variant="secondary" onClick={handleExportAll} disabled={exporting}>
+              {exporting ? 'Exporting…' : 'Export All Data'}
+            </Button>
           </Card>
 
           <div className="flex items-center gap-3">
