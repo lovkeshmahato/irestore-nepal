@@ -55,7 +55,7 @@ export function TrackRepair() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-primary-50 to-slate-100 px-4 py-10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-100 via-primary-50 to-slate-100 px-4 py-10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <div className="mx-auto max-w-lg">
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-600 text-white">
@@ -68,12 +68,13 @@ export function TrackRepair() {
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900 sm:p-8">
           <div className="flex gap-2">
             <Input
+              className="min-w-0 flex-1"
               placeholder="Phone number or Job # (e.g. JS-00001)"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
-            <Button onClick={() => handleSearch()} disabled={loading}>
+            <Button onClick={() => handleSearch()} disabled={loading} className="shrink-0" aria-label="Search">
               <Search className="h-4 w-4" />
             </Button>
           </div>
@@ -87,9 +88,9 @@ export function TrackRepair() {
             <div className="mt-6 space-y-6">
               {results.map((r) => (
                 <div key={r.job_number} className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
-                  <div className="mb-3 flex items-center justify-between">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                     <p className="font-semibold text-slate-900 dark:text-slate-50">{r.job_number}</p>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-right text-sm text-slate-500">
                       {r.device_type} {r.model}
                     </p>
                   </div>

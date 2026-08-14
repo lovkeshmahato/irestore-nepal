@@ -108,7 +108,7 @@ export function SellYourDevice() {
               </p>
             </div>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-5 pb-28">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormRow label="Full name" required>
                   <Input value={name} onChange={(e) => setName(e.target.value)} />
@@ -180,16 +180,21 @@ export function SellYourDevice() {
               <FormRow label="Photos">
                 <PhotoUpload bucket="sell-request-photos" pathPrefix="submissions" photos={photos} onChange={setPhotos} maxPhotos={7} />
               </FormRow>
-
-              {error && <p className="text-sm text-danger-600">{error}</p>}
-
-              <Button onClick={handleSubmit} disabled={submitting} className="w-full">
-                {submitting ? 'Submitting…' : 'Get My Quote'}
-              </Button>
             </div>
           )}
         </div>
       </div>
+
+      {step === 'form' && (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
+          <div className="mx-auto max-w-lg px-4 py-3">
+            <Button onClick={handleSubmit} disabled={submitting} className="w-full">
+              {submitting ? 'Submitting…' : 'Get My Quote'}
+            </Button>
+            {error && <p className="mt-2 text-center text-sm text-danger-600">{error}</p>}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
