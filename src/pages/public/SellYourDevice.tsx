@@ -45,28 +45,26 @@ export function SellYourDevice() {
       const { data: reqNumber, error: numError } = await supabase.rpc('next_sell_request_number')
       if (numError) throw numError
 
-      const { data: request, error: reqError } = await supabase
-        .from('sell_requests')
-        .insert({
-          request_number: reqNumber,
-          seller_name: name,
-          seller_phone: phone,
-          seller_email: email || null,
-          device_type: deviceType,
-          model,
-          color: color || null,
-          storage_capacity: storage || null,
-          condition_self_report: condition,
-          accessories,
-          additional_details: details || null,
-        })
-        .select()
-        .single()
+      const requestId = crypto.randomUUID()
+      const { error: reqError } = await supabase.from('sell_requests').insert({
+        id: requestId,
+        request_number: reqNumber,
+        seller_name: name,
+        seller_phone: phone,
+        seller_email: email || null,
+        device_type: deviceType,
+        model,
+        color: color || null,
+        storage_capacity: storage || null,
+        condition_self_report: condition,
+        accessories,
+        additional_details: details || null,
+      })
       if (reqError) throw reqError
 
       if (photos.length > 0) {
         await supabase.from('sell_request_photos').insert(
-          photos.map((p) => ({ sell_request_id: request.id, storage_path: p.storagePath }))
+          photos.map((p) => ({ sell_request_id: requestId, storage_path: p.storagePath }))
         )
       }
 
