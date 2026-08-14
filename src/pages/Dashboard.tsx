@@ -9,6 +9,9 @@ import {
   DollarSign,
   AlertTriangle,
   ShieldCheck,
+  UserPlus,
+  FilePlus2,
+  Search,
 } from 'lucide-react'
 import {
   Area,
@@ -29,6 +32,9 @@ import { FullPageSpinner } from '../components/ui/Spinner'
 import { EmptyState } from '../components/ui/EmptyState'
 import { JOB_STATUS_LABELS, type JobSheet, type Part } from '../types'
 import { format, subMonths, startOfMonth } from 'date-fns'
+import { LeadsWidget } from './dashboard/LeadsWidget'
+import { TrackRepairLookup } from '../components/TrackRepairLookup'
+import { CustomerFormModal } from './customers/CustomerFormModal'
 
 interface DashboardData {
   totalDevices: number
@@ -48,8 +54,11 @@ export function Dashboard() {
   const { profile } = useAuth()
   const navigate = useNavigate()
   const [data, setData] = useState<DashboardData | null>(null)
+  const [showTrackRepair, setShowTrackRepair] = useState(false)
+  const [showNewCustomer, setShowNewCustomer] = useState(false)
   const canSeeFinancials = profile && ['super_admin', 'admin', 'front_desk', 'accountant'].includes(profile.role)
   const canSeeInventory = profile && ['super_admin', 'admin'].includes(profile.role)
+  const canCreateJobs = profile && ['super_admin', 'admin', 'front_desk'].includes(profile.role)
 
   useEffect(() => {
     let cancelled = false
@@ -154,11 +163,51 @@ export function Dashboard() {
     <div>
       <PageHeader title="Dashboard" description="Overview of your service centre" />
 
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {canCreateJobs && (
+          <button
+            onClick={() => setShowNewCustomer(true)}
+            className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-primary-300 hover:bg-primary-50/50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-600/20">
+              <UserPlus className="h-5 w-5" />
+            </span>
+            <span className="text-sm font-medium text-slate-900 dark:text-slate-100">New Customer</span>
+          </button>
+        )}
+        {canCreateJobs && (
+          <button
+            onClick={() => navigate('/job-sheets/new')}
+            className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-primary-300 hover:bg-primary-50/50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-success-50 text-success-600 dark:bg-success-600/20">
+              <FilePlus2 className="h-5 w-5" />
+            </span>
+            <span className="text-sm font-medium text-slate-900 dark:text-slate-100">New Job Sheet</span>
+          </button>
+        )}
+        <button
+          onClick={() => setShowTrackRepair(true)}
+          className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-primary-300 hover:bg-primary-50/50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-info-50 text-info-600 dark:bg-info-600/20">
+            <Search className="h-5 w-5" />
+          </span>
+          <span className="text-sm font-medium text-slate-900 dark:text-slate-100">Track Repair</span>
+        </button>
+      </div>
+
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {stats.map((s) => (
           <StatCard key={s.label} {...s} />
         ))}
       </div>
+
+      {canCreateJobs && (
+        <div className="mb-6">
+          <LeadsWidget />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
@@ -266,6 +315,16 @@ export function Dashboard() {
           )}
         </div>
       </div>
+
+      <TrackRepairLookup open={showTrackRepair} onClose={() => setShowTrackRepair(false)} />
+      <CustomerFormModal
+        open={showNewCustomer}
+        onClose={() => setShowNewCustomer(false)}
+        onSaved={(customer) => {
+          setShowNewCustomer(false)
+          navigate(`/customers/${customer.id}`)
+        }}
+      />
     </div>
   )
 }

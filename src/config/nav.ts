@@ -6,7 +6,6 @@ import {
   FileText,
   ShieldCheck,
   Repeat,
-  CalendarCheck,
   Package,
   Truck,
   UserCog,
@@ -44,7 +43,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Invoices', to: '/invoices', icon: FileText, roles: ['super_admin', 'admin', 'front_desk', 'accountant'] },
       { label: 'Warranties', to: '/warranties', icon: ShieldCheck, roles: ['super_admin', 'admin', 'front_desk', 'accountant'] },
       { label: 'Sell Requests', to: '/sell-requests', icon: Repeat, roles: ['super_admin', 'admin', 'front_desk'] },
-      { label: 'Appointments', to: '/appointments', icon: CalendarCheck, roles: ['super_admin', 'admin', 'front_desk'] },
     ],
   },
   {

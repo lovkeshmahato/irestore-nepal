@@ -4,12 +4,12 @@ import { Plus, Search, QrCode } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { JobSheet, JobStatus } from '../../types'
-import { JOB_STATUS_FLOW, JOB_STATUS_LABELS } from '../../types'
+import { JOB_STATUS_FLOW, JOB_STATUS_LABELS, JOB_PRIORITY_LABELS } from '../../types'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Button } from '../../components/ui/Button'
 import { Input, Select } from '../../components/ui/Field'
 import { Card } from '../../components/ui/Card'
-import { StatusBadge } from '../../components/ui/Badge'
+import { Badge, StatusBadge } from '../../components/ui/Badge'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { FullPageSpinner } from '../../components/ui/Spinner'
 
@@ -93,6 +93,7 @@ export function JobSheetsList() {
                   <th className="px-4 py-3 font-medium">Job #</th>
                   <th className="px-4 py-3 font-medium">Customer</th>
                   <th className="px-4 py-3 font-medium">Device</th>
+                  <th className="px-4 py-3 font-medium">Priority</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Created</th>
                   <th className="px-4 py-3 font-medium"></th>
@@ -108,6 +109,11 @@ export function JobSheetsList() {
                     <td className="px-4 py-3 font-medium text-primary-600">{job.job_number}</td>
                     <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{job.customers?.full_name}</td>
                     <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{job.devices?.model}</td>
+                    <td className="px-4 py-3">
+                      {job.priority !== 'normal' && (
+                        <Badge tone={job.priority === 'urgent' ? 'danger' : 'warning'}>{JOB_PRIORITY_LABELS[job.priority]}</Badge>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={job.status} kind="job" label={JOB_STATUS_LABELS[job.status]} />
                     </td>

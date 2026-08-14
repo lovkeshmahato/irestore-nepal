@@ -4,13 +4,13 @@ import { ArrowLeft, Printer, Lock, ShieldCheck, FileText } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import type { JobSheet, JobStatus, JobStatusHistory, Profile, Warranty } from '../../types'
-import { JOB_STATUS_LABELS } from '../../types'
+import type { JobSheet, JobStatus, JobStatusHistory, Profile, Warranty, JobPriority } from '../../types'
+import { JOB_STATUS_LABELS, DEVICE_CONDITION_LABELS, JOB_PRIORITY_LABELS } from '../../types'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { Select } from '../../components/ui/Field'
-import { StatusBadge } from '../../components/ui/Badge'
+import { Input, Select } from '../../components/ui/Field'
+import { Badge, StatusBadge } from '../../components/ui/Badge'
 import { FullPageSpinner } from '../../components/ui/Spinner'
 import { StatusPipeline } from './components/StatusPipeline'
 import { PartsUsedSection } from './components/PartsUsedSection'
@@ -33,6 +33,7 @@ export function JobSheetDetail() {
   const canManage = profile && ['super_admin', 'admin', 'front_desk'].includes(profile.role)
   const canChangeStatus = canManage || isTechAssigned
   const canSeeFinancials = profile && ['super_admin', 'admin', 'front_desk', 'accountant'].includes(profile.role)
+  const canSeeSecurity = !!canManage || !!isTechAssigned
 
   async function load() {
     if (!id) return
@@ -66,7 +67,11 @@ export function JobSheetDetail() {
   async function updateStatus(status: JobStatus) {
     if (!job) return
     const patch: Partial<JobSheet> = { status }
-    if (status === 'delivered') patch.passcode = null
+    if (status === 'delivered') {
+      patch.passcode = null
+      patch.icloud_account = null
+      patch.security_notes = null
+    }
     await supabase.from('job_sheets').update(patch).eq('id', job.id)
     await supabase.from('job_status_history').insert({ job_sheet_id: job.id, status, changed_by: profile?.id })
     load()
@@ -75,6 +80,18 @@ export function JobSheetDetail() {
   async function assignTechnician(techId: string) {
     if (!job) return
     await supabase.from('job_sheets').update({ assigned_technician_id: techId || null }).eq('id', job.id)
+    load()
+  }
+
+  async function updatePriority(priority: JobPriority) {
+    if (!job) return
+    await supabase.from('job_sheets').update({ priority }).eq('id', job.id)
+    load()
+  }
+
+  async function updateEta(date: string) {
+    if (!job) return
+    await supabase.from('job_sheets').update({ estimated_completion_date: date || null }).eq('id', job.id)
     load()
   }
 
@@ -149,17 +166,22 @@ export function JobSheetDetail() {
                 <p className="text-xs text-slate-400">IMEI</p>
                 <p className="text-slate-800 dark:text-slate-200">{job.devices?.imei ?? '—'}</p>
               </div>
-              {job.passcode && (
+              {job.device_condition && (
                 <div>
-                  <p className="text-xs text-slate-400">Passcode</p>
-                  <p className="flex items-center gap-1 text-slate-800 dark:text-slate-200">
-                    <Lock className="h-3 w-3" /> {job.passcode}
-                  </p>
+                  <p className="text-xs text-slate-400">Condition</p>
+                  <p className="text-slate-800 dark:text-slate-200">{DEVICE_CONDITION_LABELS[job.device_condition]}</p>
                 </div>
               )}
             </div>
             <p className="mt-3 text-xs text-slate-400">Reported Issue</p>
             <p className="text-sm text-slate-700 dark:text-slate-200">{job.reported_issue}</p>
+
+            {job.physical_damage_details && (
+              <>
+                <p className="mt-3 text-xs text-slate-400">Physical Damage Details</p>
+                <p className="text-sm text-slate-700 dark:text-slate-200">{job.physical_damage_details}</p>
+              </>
+            )}
 
             {job.accessories_received.length > 0 && (
               <>
@@ -168,6 +190,37 @@ export function JobSheetDetail() {
               </>
             )}
           </Card>
+
+          {canSeeSecurity && (
+            <Card className="p-5">
+              <h2 className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">Device Security Details</h2>
+              <p className="mb-3 text-xs text-slate-400">Sensitive — never printed, cleared automatically once delivered.</p>
+              {job.passcode || job.icloud_account || job.security_notes ? (
+                <div className="space-y-2 text-sm">
+                  {job.passcode && (
+                    <p className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200">
+                      <Lock className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="text-xs text-slate-400">PIN/Password:</span> {job.passcode}
+                    </p>
+                  )}
+                  {job.icloud_account && (
+                    <p className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200">
+                      <Lock className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="text-xs text-slate-400">iCloud/Apple ID:</span> {job.icloud_account}
+                    </p>
+                  )}
+                  {job.security_notes && (
+                    <p className="text-slate-700 dark:text-slate-200">
+                      <span className="text-xs text-slate-400">Notes: </span>
+                      {job.security_notes}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-400">No security details recorded.</p>
+              )}
+            </Card>
+          )}
 
           {canSeeFinancials && (
             <Card className="p-5">
@@ -189,6 +242,35 @@ export function JobSheetDetail() {
         </div>
 
         <div className="space-y-6">
+          <Card className="p-5">
+            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Priority & ETA</h2>
+            {canManage ? (
+              <div className="space-y-3">
+                <Select value={job.priority} onChange={(e) => updatePriority(e.target.value as JobPriority)}>
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </Select>
+                <Input
+                  type="date"
+                  value={job.estimated_completion_date ?? ''}
+                  onChange={(e) => updateEta(e.target.value)}
+                />
+              </div>
+            ) : (
+              <div className="space-y-1 text-sm">
+                <Badge tone={job.priority === 'urgent' ? 'danger' : job.priority === 'high' ? 'warning' : 'neutral'}>
+                  {JOB_PRIORITY_LABELS[job.priority]}
+                </Badge>
+                {job.estimated_completion_date && (
+                  <p className="text-slate-600 dark:text-slate-300">
+                    ETA: {new Date(job.estimated_completion_date).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            )}
+          </Card>
+
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Technician</h2>
             {canManage ? (

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShieldPlus, Printer } from 'lucide-react'
+import { ShieldPlus, Printer, Plus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import type { Warranty, WarrantyClaim } from '../../types'
+import type { Warranty, WarrantyClaim, WarrantyStatus } from '../../types'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Badge, StatusBadge } from '../../components/ui/Badge'
@@ -11,7 +11,7 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { FullPageSpinner } from '../../components/ui/Spinner'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
-import { FormRow, TextArea } from '../../components/ui/Field'
+import { FormRow, Input, Select, TextArea } from '../../components/ui/Field'
 
 type WarrantyRow = Omit<Warranty, 'job_sheets'> & {
   job_sheets?: { job_number: string; customer_id: string; customers?: { full_name: string } }
@@ -23,6 +23,7 @@ export function WarrantiesList() {
   const [warranties, setWarranties] = useState<WarrantyRow[] | null>(null)
   const [claims, setClaims] = useState<WarrantyClaim[]>([])
   const [claimingWarranty, setClaimingWarranty] = useState<WarrantyRow | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
   const canManage = profile && ['super_admin', 'admin', 'front_desk'].includes(profile.role)
 
   async function load() {
@@ -45,7 +46,17 @@ export function WarrantiesList() {
 
   return (
     <div>
-      <PageHeader title="Warranties" description={`${warranties.length} warranties issued`} />
+      <PageHeader
+        title="Warranties"
+        description={`${warranties.length} warranties issued`}
+        actions={
+          canManage && (
+            <Button onClick={() => setShowCreate(true)}>
+              <Plus className="h-4 w-4" /> Create Warranty
+            </Button>
+          )
+        }
+      />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="overflow-hidden lg:col-span-2">
@@ -127,7 +138,162 @@ export function WarrantiesList() {
           load()
         }}
       />
+      <CreateWarrantyModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onSaved={() => {
+          setShowCreate(false)
+          load()
+        }}
+      />
     </div>
+  )
+}
+
+interface JobSheetOption {
+  id: string
+  job_number: string
+  customers?: { full_name: string }
+}
+
+const PERIOD_PRESETS = [30, 60, 90]
+
+function CreateWarrantyModal({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {
+  const [jobSheets, setJobSheets] = useState<JobSheetOption[]>([])
+  const [jobSheetId, setJobSheetId] = useState('')
+  const [periodDays, setPeriodDays] = useState(30)
+  const [customPeriod, setCustomPeriod] = useState(false)
+  const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [status, setStatus] = useState<WarrantyStatus>('active')
+  const [coverageDetails, setCoverageDetails] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    supabase
+      .from('job_sheets')
+      .select('id, job_number, customers(full_name)')
+      .order('created_at', { ascending: false })
+      .limit(150)
+      .then(({ data }) => setJobSheets((data ?? []) as unknown as JobSheetOption[]))
+  }, [open])
+
+  async function handleSubmit() {
+    if (!jobSheetId) {
+      setError('Select a job sheet.')
+      return
+    }
+    if (!coverageDetails.trim()) {
+      setError('Describe what is covered.')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    const endDate = new Date(startDate)
+    endDate.setDate(endDate.getDate() + periodDays)
+    const { error } = await supabase.from('warranties').insert({
+      job_sheet_id: jobSheetId,
+      warranty_type: 'labor',
+      coverage_description: coverageDetails,
+      period_days: periodDays,
+      start_date: startDate,
+      end_date: endDate.toISOString().slice(0, 10),
+      status,
+    })
+    setSaving(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    setJobSheetId('')
+    setCoverageDetails('')
+    onSaved()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Create Warranty">
+      <div className="space-y-4">
+        <FormRow label="Linked Job Sheet" required>
+          <Select value={jobSheetId} onChange={(e) => setJobSheetId(e.target.value)}>
+            <option value="">-- Select Job Sheet --</option>
+            {jobSheets.map((j) => (
+              <option key={j.id} value={j.id}>
+                {j.job_number} — {j.customers?.full_name}
+              </option>
+            ))}
+          </Select>
+        </FormRow>
+
+        <FormRow label="Warranty Period">
+          {customPeriod ? (
+            <div className="flex items-center gap-2">
+              <Input type="number" min={1} value={periodDays} onChange={(e) => setPeriodDays(Number(e.target.value))} />
+              <span className="text-sm text-slate-500">days</span>
+              <button type="button" onClick={() => setCustomPeriod(false)} className="text-xs text-primary-600 hover:underline">
+                Use preset
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {PERIOD_PRESETS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPeriodDays(p)}
+                  className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
+                    periodDays === p
+                      ? 'border-primary-600 bg-primary-50 text-primary-700 dark:bg-primary-600/20 dark:text-primary-100'
+                      : 'border-slate-300 text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  {p} days
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setCustomPeriod(true)}
+                className="rounded-full border border-dashed border-slate-300 px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-50 dark:border-slate-600"
+              >
+                Custom…
+              </button>
+            </div>
+          )}
+        </FormRow>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormRow label="Start Date" required>
+            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </FormRow>
+          <FormRow label="Status">
+            <Select value={status} onChange={(e) => setStatus(e.target.value as WarrantyStatus)}>
+              <option value="active">Active</option>
+              <option value="expired">Expired</option>
+              <option value="claimed">Claimed</option>
+            </Select>
+          </FormRow>
+        </div>
+
+        <FormRow label="Coverage Details" required>
+          <TextArea
+            rows={3}
+            placeholder="What's covered — parts, labor, or both"
+            value={coverageDetails}
+            onChange={(e) => setCoverageDetails(e.target.value)}
+          />
+        </FormRow>
+
+        {error && <p className="text-sm text-danger-600">{error}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSubmit} disabled={saving}>
+            {saving ? 'Creating…' : 'Create Warranty'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 

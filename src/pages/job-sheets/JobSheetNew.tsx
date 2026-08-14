@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import type { Customer, ConditionChecklist } from '../../types'
+import type { Customer, ConditionChecklist, DeviceCondition, JobPriority } from '../../types'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -13,7 +13,7 @@ import { PhotoUpload, type UploadedPhoto } from '../../components/ui/PhotoUpload
 import { CustomerPicker } from '../../components/CustomerPicker'
 
 const DEVICE_TYPES = ['iPhone', 'iPad', 'MacBook', 'iMac', 'Apple Watch', 'AirPods', 'Other']
-const ACCESSORY_OPTIONS = ['Charger', 'Cable', 'Box', 'Case', 'SIM Tool', 'Screen Protector', 'Other']
+const ACCESSORY_OPTIONS = ['Charger', 'Cable', 'Box', 'Case', 'SIM', 'Other']
 const CHECKLIST_ITEMS: { key: keyof ConditionChecklist; label: string }[] = [
   { key: 'screen', label: 'Screen damage' },
   { key: 'back_glass', label: 'Back glass damage' },
@@ -27,16 +27,31 @@ export function JobSheetNew() {
   const { profile } = useAuth()
 
   const [customer, setCustomer] = useState<Customer | null>(null)
+
+  // 4.1 Device Information
   const [deviceType, setDeviceType] = useState('iPhone')
   const [model, setModel] = useState('')
-  const [color, setColor] = useState('')
-  const [serial, setSerial] = useState('')
   const [imei, setImei] = useState('')
-  const [passcode, setPasscode] = useState('')
-  const [reportedIssue, setReportedIssue] = useState('')
-  const [checklist, setChecklist] = useState<ConditionChecklist>({})
+  const [color, setColor] = useState('')
+  const [deviceCondition, setDeviceCondition] = useState<DeviceCondition>('good')
   const [accessories, setAccessories] = useState<string[]>([])
+
+  // 4.2 Issue Details
+  const [reportedIssue, setReportedIssue] = useState('')
+  const [physicalDamageDetails, setPhysicalDamageDetails] = useState('')
+  const [checklist, setChecklist] = useState<ConditionChecklist>({})
   const [photos, setPhotos] = useState<UploadedPhoto[]>([])
+
+  // 4.3 Device Security Details
+  const [passcode, setPasscode] = useState('')
+  const [icloudAccount, setIcloudAccount] = useState('')
+  const [securityNotes, setSecurityNotes] = useState('')
+
+  // 4.4 Assignment & Estimates
+  const [estimatedCost, setEstimatedCost] = useState<number | ''>('')
+  const [estimatedCompletionDate, setEstimatedCompletionDate] = useState('')
+  const [priority, setPriority] = useState<JobPriority>('normal')
+
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -59,7 +74,7 @@ export function JobSheetNew() {
           device_type: deviceType,
           model,
           color: color || null,
-          serial_number: serial || null,
+          serial_number: null,
           imei: imei || null,
         })
         .select()
@@ -76,9 +91,16 @@ export function JobSheetNew() {
           customer_id: customer.id,
           device_id: device.id,
           passcode: passcode || null,
+          icloud_account: icloudAccount || null,
+          security_notes: securityNotes || null,
           reported_issue: reportedIssue,
+          physical_damage_details: physicalDamageDetails || null,
+          device_condition: deviceCondition,
           condition_checklist: checklist,
           accessories_received: accessories,
+          estimated_cost: estimatedCost === '' ? null : estimatedCost,
+          estimated_completion_date: estimatedCompletionDate || null,
+          priority,
           status: 'received',
           created_by: profile?.id,
         })
@@ -123,7 +145,7 @@ export function JobSheetNew() {
           </Card>
 
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Device Details</h2>
+            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Device Information</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormRow label="Device type" required>
                 <Select value={deviceType} onChange={(e) => setDeviceType(e.target.value)}>
@@ -132,35 +154,50 @@ export function JobSheetNew() {
                   ))}
                 </Select>
               </FormRow>
-              <FormRow label="Model" required>
+              <FormRow label="Device model" required>
                 <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. iPhone 13 Pro" />
               </FormRow>
-              <FormRow label="Color">
-                <Input value={color} onChange={(e) => setColor(e.target.value)} />
-              </FormRow>
-              <FormRow label="Serial number">
-                <Input value={serial} onChange={(e) => setSerial(e.target.value)} />
-              </FormRow>
-              <FormRow label="IMEI">
+              <FormRow label="IMEI / Serial Number">
                 <Input value={imei} onChange={(e) => setImei(e.target.value)} />
               </FormRow>
-              <FormRow label="Passcode / Pattern (confidential)">
-                <Input value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="Cleared once job closed" />
+              <FormRow label="Device color">
+                <Input value={color} onChange={(e) => setColor(e.target.value)} />
+              </FormRow>
+              <FormRow label="Device condition" required>
+                <Select value={deviceCondition} onChange={(e) => setDeviceCondition(e.target.value as DeviceCondition)}>
+                  <option value="good">Good</option>
+                  <option value="fair">Fair</option>
+                  <option value="poor">Poor</option>
+                  <option value="damaged">Damaged</option>
+                </Select>
               </FormRow>
             </div>
+            <FormRow label="Accessories submitted">
+              <ChipSelect options={ACCESSORY_OPTIONS} value={accessories} onChange={setAccessories} />
+            </FormRow>
           </Card>
 
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Reported Issue</h2>
-            <TextArea
-              rows={3}
-              value={reportedIssue}
-              onChange={(e) => setReportedIssue(e.target.value)}
-              placeholder="Describe the issue the customer reported…"
-            />
+            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Issue Details</h2>
+            <FormRow label="Reported issue" required>
+              <TextArea
+                rows={3}
+                value={reportedIssue}
+                onChange={(e) => setReportedIssue(e.target.value)}
+                placeholder="Describe the issue the customer reported…"
+              />
+            </FormRow>
+            <FormRow label="Physical damage details">
+              <TextArea
+                rows={2}
+                value={physicalDamageDetails}
+                onChange={(e) => setPhysicalDamageDetails(e.target.value)}
+                placeholder="Cracks, dents, scratches…"
+              />
+            </FormRow>
 
             <h3 className="mb-2 mt-4 text-xs font-semibold uppercase text-slate-400">Condition Checklist</h3>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {CHECKLIST_ITEMS.map((item) => (
                 <label key={item.key} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                   <input
@@ -173,21 +210,54 @@ export function JobSheetNew() {
                 </label>
               ))}
             </div>
+
+            <FormRow label="Device images">
+              <PhotoUpload bucket="job-photos" pathPrefix="intake" photos={photos} onChange={setPhotos} />
+            </FormRow>
           </Card>
 
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Accessories Included</h2>
-            <ChipSelect options={ACCESSORY_OPTIONS} value={accessories} onChange={setAccessories} />
+            <h2 className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">Device Security Details</h2>
+            <p className="mb-3 text-xs text-slate-400">
+              Sensitive — masked in list views, visible only to assigned staff, and cleared once the job is delivered.
+              Never included in print templates.
+            </p>
+            <div className="space-y-4">
+              <FormRow label="Device PIN / Password">
+                <Input value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="Cleared once job closed" />
+              </FormRow>
+              <FormRow label="iCloud / Apple ID account">
+                <Input value={icloudAccount} onChange={(e) => setIcloudAccount(e.target.value)} placeholder="Email associated with device" />
+              </FormRow>
+              <FormRow label="Security notes">
+                <TextArea rows={2} value={securityNotes} onChange={(e) => setSecurityNotes(e.target.value)} />
+              </FormRow>
+            </div>
           </Card>
 
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Before-Repair Photos</h2>
-            <PhotoUpload
-              bucket="job-photos"
-              pathPrefix="intake"
-              photos={photos}
-              onChange={setPhotos}
-            />
+            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Assignment & Estimates</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormRow label="Estimated cost (NPR)">
+                <Input
+                  type="number"
+                  min={0}
+                  value={estimatedCost}
+                  onChange={(e) => setEstimatedCost(e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
+                />
+              </FormRow>
+              <FormRow label="Estimated completion date">
+                <Input type="date" value={estimatedCompletionDate} onChange={(e) => setEstimatedCompletionDate(e.target.value)} />
+              </FormRow>
+              <FormRow label="Priority">
+                <Select value={priority} onChange={(e) => setPriority(e.target.value as JobPriority)}>
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </Select>
+              </FormRow>
+            </div>
+            <p className="mt-2 text-xs text-slate-400">Technician assignment is available once the job sheet is created.</p>
           </Card>
         </div>
 

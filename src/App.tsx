@@ -27,14 +27,12 @@ import { SellRequestsList } from './pages/sell-requests/SellRequestsList'
 import { SellRequestDetail } from './pages/sell-requests/SellRequestDetail'
 import { RefurbList } from './pages/sell-requests/RefurbList'
 
-import { AppointmentsList } from './pages/appointments/AppointmentsList'
 import { StaffList } from './pages/staff/StaffList'
 import { Reports } from './pages/reports/Reports'
 import { Settings } from './pages/settings/Settings'
 
 import { SellYourDevice } from './pages/public/SellYourDevice'
 import { TrackRepair } from './pages/public/TrackRepair'
-import { BookAppointment } from './pages/public/BookAppointment'
 
 import { JobSheetPrint } from './print/JobSheetPrint'
 import { InvoicePrint } from './print/InvoicePrint'
@@ -48,8 +46,8 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/sell-your-device" element={<SellYourDevice />} />
+      <Route path="/sell" element={<SellYourDevice />} />
       <Route path="/track-repair" element={<TrackRepair />} />
-      <Route path="/book-appointment" element={<BookAppointment />} />
 
       {/* Print views: full-page, no sidebar chrome, still login-gated */}
       <Route element={<ProtectedRoute />}>
@@ -99,7 +97,6 @@ function App() {
             <Route path="/sell-requests" element={<SellRequestsList />} />
             <Route path="/sell-requests/:id" element={<SellRequestDetail />} />
             <Route path="/refurb" element={<RefurbList />} />
-            <Route path="/appointments" element={<AppointmentsList />} />
           </Route>
 
           <Route element={<RoleRoute roles={['super_admin', 'admin']} />}>

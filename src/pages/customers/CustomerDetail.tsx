@@ -1,22 +1,27 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Pencil, Phone, Mail, MapPin } from 'lucide-react'
+import { ArrowLeft, Pencil, Phone, Mail, MapPin, History } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import type { Customer, JobSheet, SellRequest } from '../../types'
+import type { Customer, JobSheet, SellRequest, LegacyServiceRecord } from '../../types'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { StatusBadge } from '../../components/ui/Badge'
+import { Badge, StatusBadge } from '../../components/ui/Badge'
 import { FullPageSpinner } from '../../components/ui/Spinner'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { JOB_STATUS_LABELS, SELL_REQUEST_STATUS_LABELS } from '../../types'
 import { CustomerFormModal } from './CustomerFormModal'
+
+type TimelineItem =
+  | { kind: 'job'; date: string; job: JobSheet }
+  | { kind: 'legacy'; date: string; record: LegacyServiceRecord }
 
 export function CustomerDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [jobSheets, setJobSheets] = useState<JobSheet[]>([])
+  const [legacyRecords, setLegacyRecords] = useState<LegacyServiceRecord[]>([])
   const [totalSpend, setTotalSpend] = useState(0)
   const [sellRequests, setSellRequests] = useState<SellRequest[]>([])
   const [showEdit, setShowEdit] = useState(false)
@@ -24,13 +29,15 @@ export function CustomerDetail() {
   async function load() {
     if (!id) return
     const { data: c } = await supabase.from('customers').select('*').eq('id', id).single()
-    const [{ data: jobs }, { data: invoices }, { data: sells }] = await Promise.all([
+    const [{ data: jobs }, { data: legacy }, { data: invoices }, { data: sells }] = await Promise.all([
       supabase.from('job_sheets').select('*, devices(*)').eq('customer_id', id).order('created_at', { ascending: false }),
+      supabase.from('legacy_service_records').select('*').eq('customer_id', id).order('service_date', { ascending: false }),
       supabase.from('invoices').select('amount_paid').eq('customer_id', id),
       supabase.from('sell_requests').select('*').eq('seller_phone', c?.phone ?? '').order('created_at', { ascending: false }),
     ])
     setCustomer(c)
     setJobSheets((jobs ?? []) as JobSheet[])
+    setLegacyRecords((legacy ?? []) as LegacyServiceRecord[])
     setTotalSpend((invoices ?? []).reduce((sum, i) => sum + Number(i.amount_paid), 0))
     setSellRequests((sells ?? []) as SellRequest[])
   }
@@ -41,6 +48,11 @@ export function CustomerDetail() {
   }, [id])
 
   if (!customer) return <FullPageSpinner />
+
+  const timeline: TimelineItem[] = [
+    ...jobSheets.map((job): TimelineItem => ({ kind: 'job', date: job.created_at, job })),
+    ...legacyRecords.map((record): TimelineItem => ({ kind: 'legacy', date: record.service_date ?? record.created_at, record })),
+  ].sort((a, b) => b.date.localeCompare(a.date))
 
   return (
     <div>
@@ -101,25 +113,41 @@ export function CustomerDetail() {
         <div className="space-y-6 lg:col-span-2">
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Device / Repair History</h2>
-            {jobSheets.length === 0 ? (
-              <EmptyState title="No job sheets yet" />
+            {timeline.length === 0 ? (
+              <EmptyState title="No job sheets or history yet" />
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {jobSheets.map((job) => (
-                  <button
-                    key={job.id}
-                    onClick={() => navigate(`/job-sheets/${job.id}`)}
-                    className="flex w-full items-center justify-between py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{job.job_number}</p>
-                      <p className="text-xs text-slate-400">
-                        {job.devices?.model} · {new Date(job.created_at).toLocaleDateString()}
-                      </p>
+                {timeline.map((item) =>
+                  item.kind === 'job' ? (
+                    <button
+                      key={`job-${item.job.id}`}
+                      onClick={() => navigate(`/job-sheets/${item.job.id}`)}
+                      className="flex w-full items-center justify-between py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{item.job.job_number}</p>
+                        <p className="text-xs text-slate-400">
+                          {item.job.devices?.model} · {new Date(item.job.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <StatusBadge status={item.job.status} kind="job" label={JOB_STATUS_LABELS[item.job.status]} />
+                    </button>
+                  ) : (
+                    <div key={`legacy-${item.record.id}`} className="flex items-center justify-between py-3">
+                      <div>
+                        <p className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+                          <History className="h-3.5 w-3.5 text-slate-400" />
+                          {item.record.device} — {item.record.issue}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {item.record.service_date ? new Date(item.record.service_date).toLocaleDateString() : 'Date unknown'}
+                          {item.record.notes && ` · ${item.record.notes}`}
+                        </p>
+                      </div>
+                      <Badge tone="neutral">Legacy Record</Badge>
                     </div>
-                    <StatusBadge status={job.status} kind="job" label={JOB_STATUS_LABELS[job.status]} />
-                  </button>
-                ))}
+                  )
+                )}
               </div>
             )}
           </Card>
