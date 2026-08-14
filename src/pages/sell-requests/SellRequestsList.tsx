@@ -77,36 +77,63 @@ export function SellRequestsList() {
         {requests.length === 0 ? (
           <EmptyState title="No sell requests yet" />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Request #</th>
-                  <th className="px-4 py-3 font-medium">Seller</th>
-                  <th className="px-4 py-3 font-medium">Device</th>
-                  <th className="px-4 py-3 font-medium">Offer</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Submitted</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {requests.map((r) => (
-                  <tr key={r.id} onClick={() => navigate(`/sell-requests/${r.id}`)} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="px-4 py-3 font-medium text-primary-600">{r.request_number}</td>
-                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{r.seller_name}</td>
-                    <td className="px-4 py-3 text-slate-500">
-                      {r.device_type} {r.model}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">{r.offer_price ? `Rs. ${r.offer_price.toLocaleString()}` : '—'}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={r.status} kind="sell_request" label={SELL_REQUEST_STATUS_LABELS[r.status]} />
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">{new Date(r.created_at).toLocaleDateString()}</td>
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Request #</th>
+                    <th className="px-4 py-3 font-medium">Seller</th>
+                    <th className="px-4 py-3 font-medium">Device</th>
+                    <th className="px-4 py-3 font-medium">Offer</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="hidden px-4 py-3 font-medium lg:table-cell">Submitted</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {requests.map((r) => (
+                    <tr key={r.id} onClick={() => navigate(`/sell-requests/${r.id}`)} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td className="px-4 py-3 font-medium text-primary-600">{r.request_number}</td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{r.seller_name}</td>
+                      <td className="px-4 py-3 text-slate-500">
+                        {r.device_type} {r.model}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">{r.offer_price ? `Rs. ${r.offer_price.toLocaleString()}` : '—'}</td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={r.status} kind="sell_request" label={SELL_REQUEST_STATUS_LABELS[r.status]} />
+                      </td>
+                      <td className="hidden px-4 py-3 text-slate-500 lg:table-cell">{new Date(r.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
+              {requests.map((r) => (
+                <div
+                  key={r.id}
+                  onClick={() => navigate(`/sell-requests/${r.id}`)}
+                  className="cursor-pointer p-4 active:bg-slate-50 dark:active:bg-slate-800/50"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-sm font-semibold text-primary-600">{r.request_number}</span>
+                    <StatusBadge status={r.status} kind="sell_request" label={SELL_REQUEST_STATUS_LABELS[r.status]} />
+                  </div>
+                  <div className="mt-1.5 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+                    <div>{r.seller_name}</div>
+                    <div>
+                      {r.device_type} {r.model}
+                    </div>
+                    <div>
+                      {r.offer_price ? `Rs. ${r.offer_price.toLocaleString()}` : 'No offer yet'} &middot;{' '}
+                      {new Date(r.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </Card>
 

@@ -46,58 +46,108 @@ export function RefurbList() {
         {items.length === 0 ? (
           <EmptyState title="No refurb items yet" description="Devices appear here once a buyback is paid out." />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Device</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Listed Price</th>
-                  <th className="px-4 py-3 font-medium">Sold Price</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="px-4 py-3 text-slate-800 dark:text-slate-200">
-                      {item.sell_requests?.device_type} {item.sell_requests?.model}
-                    </td>
-                    <td className="px-4 py-3">
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Device</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Listed Price</th>
+                    <th className="px-4 py-3 font-medium">Sold Price</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {items.map((item) => (
+                    <tr key={item.id}>
+                      <td className="px-4 py-3 text-slate-800 dark:text-slate-200">
+                        {item.sell_requests?.device_type} {item.sell_requests?.model}
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={item.status}
+                          onChange={(e) => updateItem(item.id, { status: e.target.value })}
+                          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-800"
+                        >
+                          <option value="in_refurb">In Refurb</option>
+                          <option value="listed">Listed</option>
+                          <option value="sold">Sold</option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Input
+                          type="number"
+                          className="w-28"
+                          value={item.listed_price ?? ''}
+                          onChange={(e) => updateItem(item.id, { listed_price: Number(e.target.value) })}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        {item.status === 'sold' ? (
+                          <Input
+                            type="number"
+                            className="w-28"
+                            value={item.sold_price ?? ''}
+                            onChange={(e) => updateItem(item.id, { sold_price: Number(e.target.value) })}
+                          />
+                        ) : (
+                          <Badge>—</Badge>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
+              {items.map((item) => (
+                <div key={item.id} className="p-4">
+                  <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    {item.sell_requests?.device_type} {item.sell_requests?.model}
+                  </div>
+                  <div className="mt-3 space-y-2.5">
+                    <label className="block text-xs text-slate-500 dark:text-slate-400">
+                      Status
                       <select
                         value={item.status}
                         onChange={(e) => updateItem(item.id, { status: e.target.value })}
-                        className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-800"
+                        className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
                       >
                         <option value="in_refurb">In Refurb</option>
                         <option value="listed">Listed</option>
                         <option value="sold">Sold</option>
                       </select>
-                    </td>
-                    <td className="px-4 py-3">
+                    </label>
+                    <label className="block text-xs text-slate-500 dark:text-slate-400">
+                      Listed Price
                       <Input
                         type="number"
-                        className="w-28"
+                        className="mt-1 w-full"
                         value={item.listed_price ?? ''}
                         onChange={(e) => updateItem(item.id, { listed_price: Number(e.target.value) })}
                       />
-                    </td>
-                    <td className="px-4 py-3">
+                    </label>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      Sold Price
                       {item.status === 'sold' ? (
                         <Input
                           type="number"
-                          className="w-28"
+                          className="mt-1 w-full"
                           value={item.sold_price ?? ''}
                           onChange={(e) => updateItem(item.id, { sold_price: Number(e.target.value) })}
                         />
                       ) : (
-                        <Badge>—</Badge>
+                        <div className="mt-1">
+                          <Badge>—</Badge>
+                        </div>
                       )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </Card>
     </div>

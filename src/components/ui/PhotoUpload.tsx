@@ -63,14 +63,17 @@ export function PhotoUpload({
       </div>
       <div className="flex flex-wrap gap-3">
         {photos.map((photo, index) => (
-          <div key={photo.storagePath} className="relative h-20 w-20 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+          <div
+            key={photo.storagePath}
+            className="relative h-20 w-20 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 sm:h-24 sm:w-24"
+          >
             <img src={photo.previewUrl} alt="" className="h-full w-full object-cover" />
             <button
               type="button"
               onClick={() => removePhoto(index)}
-              className="absolute right-0.5 top-0.5 rounded-full bg-slate-900/70 p-0.5 text-white"
+              className="absolute right-1 top-1 rounded-full bg-slate-900/70 p-1 text-white"
             >
-              <X className="h-3 w-3" />
+              <X className="h-3.5 w-3.5" />
             </button>
           </div>
         ))}
@@ -79,7 +82,7 @@ export function PhotoUpload({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
-            className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 text-slate-400 hover:border-primary-400 hover:text-primary-500 dark:border-slate-600"
+            className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 text-slate-400 hover:border-primary-400 hover:text-primary-500 dark:border-slate-600 sm:h-24 sm:w-24"
           >
             <Camera className="h-5 w-5" />
             <span className="text-[11px]">Add</span>

@@ -197,7 +197,7 @@ export function JobSheetNew() {
             </FormRow>
 
             <h3 className="mb-2 mt-4 text-xs font-semibold uppercase text-slate-400">Condition Checklist</h3>
-            <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {CHECKLIST_ITEMS.map((item) => (
                 <label key={item.key} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                   <input
@@ -262,7 +262,7 @@ export function JobSheetNew() {
         </div>
 
         <div>
-          <Card className="sticky top-20 p-5">
+          <Card className="lg:sticky lg:top-20 p-5">
             {error && <p className="mb-3 text-sm text-danger-600">{error}</p>}
             <Button onClick={handleSubmit} disabled={saving} className="w-full">
               {saving ? 'Creating…' : 'Create Job Sheet'}

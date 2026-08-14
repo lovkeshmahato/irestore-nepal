@@ -242,7 +242,7 @@ export function InvoiceNew() {
 
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Charges</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <FormRow label="Repair Charge (NPR)">
                 <Input
                   type="number"
@@ -272,7 +272,7 @@ export function InvoiceNew() {
 
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Discount & Tax</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <FormRow label="Discount Type">
                 <Select
                   value={discountType}
@@ -302,7 +302,7 @@ export function InvoiceNew() {
 
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Payment</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <FormRow label="Payment Method">
                 <Select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
                   {PAYMENT_METHODS.map((m) => (
@@ -368,7 +368,7 @@ export function InvoiceNew() {
         </div>
 
         <div>
-          <Card className="sticky top-20 p-5">
+          <Card className="lg:sticky lg:top-20 p-5">
             <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Summary</h2>
             <div className="space-y-1.5 rounded-lg bg-slate-50 p-4 text-sm dark:bg-slate-800/50">
               <div className="flex justify-between">

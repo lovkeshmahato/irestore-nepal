@@ -242,7 +242,7 @@ function LogPaymentModal({
   return (
     <Modal open={open} onClose={onClose} title="Log Payment">
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormRow label="Date" required>
             <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
           </FormRow>
@@ -250,7 +250,7 @@ function LogPaymentModal({
             <Input type="number" min={0} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
           </FormRow>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormRow label="Method">
             <Select value={method} onChange={(e) => setMethod(e.target.value)}>
               {PAYMENT_METHODS.map((m) => (
@@ -364,8 +364,8 @@ function NewPOModal({
     <Modal open={open} onClose={onClose} title="New Purchase Order" size="lg">
       <div className="space-y-4">
         {items.map((item, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <Select className="flex-1" value={item.part_id} onChange={(e) => updateItem(i, { part_id: e.target.value })}>
+          <div key={i} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Select className="w-full sm:flex-1" value={item.part_id} onChange={(e) => updateItem(i, { part_id: e.target.value })}>
               <option value="">Select part…</option>
               {parts.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -373,8 +373,21 @@ function NewPOModal({
                 </option>
               ))}
             </Select>
-            <Input type="number" className="w-24" min={1} value={item.quantity} onChange={(e) => updateItem(i, { quantity: Number(e.target.value) })} />
-            <Input type="number" className="w-28" value={item.unit_cost} onChange={(e) => updateItem(i, { unit_cost: Number(e.target.value) })} />
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                className="w-full sm:w-24"
+                min={1}
+                value={item.quantity}
+                onChange={(e) => updateItem(i, { quantity: Number(e.target.value) })}
+              />
+              <Input
+                type="number"
+                className="w-full sm:w-28"
+                value={item.unit_cost}
+                onChange={(e) => updateItem(i, { unit_cost: Number(e.target.value) })}
+              />
+            </div>
           </div>
         ))}
         <button

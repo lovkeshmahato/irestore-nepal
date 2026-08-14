@@ -24,6 +24,7 @@ import {
 } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { Card } from '../components/ui/Card'
 import { StatCard } from '../components/ui/StatCard'
 import { StatusBadge } from '../components/ui/Badge'
@@ -66,6 +67,7 @@ export function Dashboard() {
   const [revenueRange, setRevenueRange] = useState<RevenueRange>('monthly')
   const [showTrackRepair, setShowTrackRepair] = useState(false)
   const [showNewCustomer, setShowNewCustomer] = useState(false)
+  const isNarrow = useMediaQuery('(max-width: 480px)')
   const canSeeFinancials = profile && ['super_admin', 'admin', 'front_desk', 'accountant'].includes(profile.role)
   const canSeeInventory = profile && ['super_admin', 'admin'].includes(profile.role)
   const canCreateJobs = profile && ['super_admin', 'admin', 'front_desk'].includes(profile.role)
@@ -255,10 +257,10 @@ export function Dashboard() {
       </div>
 
       {/* Row 2: bento grid — revenue chart + stat card stack */}
-      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {canSeeFinancials && (
-          <Card className="p-5 lg:col-span-2">
-            <div className="mb-4 flex items-center justify-between">
+          <Card className="p-5 md:col-span-2 lg:col-span-2">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h2 className={sectionLabelClasses}>Revenue Overview</h2>
               <div className="inline-flex rounded-lg border border-slate-200 p-0.5 dark:border-slate-700">
                 {(['daily', 'weekly', 'monthly'] as RevenueRange[]).map((r) => (
@@ -277,7 +279,7 @@ export function Dashboard() {
               </div>
             </div>
             <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={revenueSeries}>
+              <AreaChart data={revenueSeries} margin={{ left: 0, right: 8 }}>
                 <defs>
                   <linearGradient id="revenue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
@@ -285,12 +287,19 @@ export function Dashboard() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#94a3b8" strokeOpacity={0.25} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} stroke="#94a3b8" />
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={isNarrow ? 10 : 12}
+                  interval={isNarrow && revenueSeries.length > 7 ? 1 : 0}
+                  stroke="#94a3b8"
+                />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
-                  fontSize={12}
-                  width={48}
+                  fontSize={isNarrow ? 10 : 12}
+                  width={isNarrow ? 36 : 48}
                   stroke="#94a3b8"
                   tickFormatter={(v) => Number(v).toLocaleString()}
                 />
@@ -301,7 +310,11 @@ export function Dashboard() {
           </Card>
         )}
 
-        <div className={`grid grid-cols-2 gap-3 ${canSeeFinancials ? '' : 'lg:col-span-3'}`}>
+        <div
+          className={`grid grid-cols-2 gap-3 sm:grid-cols-3 md:col-span-2 md:grid-cols-4 lg:grid-cols-2 ${
+            canSeeFinancials ? 'lg:col-span-1' : 'lg:col-span-3 lg:grid-cols-4'
+          }`}
+        >
           {stats.map((s) => (
             <StatCard key={s.label} {...s} />
           ))}
@@ -309,7 +322,7 @@ export function Dashboard() {
       </div>
 
       {/* Row 3: three side-by-side panels */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {canCreateJobs ? (
           <LeadsWidget />
         ) : (

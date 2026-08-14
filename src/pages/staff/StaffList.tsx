@@ -71,15 +71,15 @@ export function StaffList() {
       />
 
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Role</th>
                 <th className="px-4 py-3 font-medium">Phone</th>
-                <th className="px-4 py-3 font-medium">Jobs Completed</th>
-                <th className="px-4 py-3 font-medium">Commission %</th>
+                <th className="hidden px-4 py-3 font-medium lg:table-cell">Jobs Completed</th>
+                <th className="hidden px-4 py-3 font-medium lg:table-cell">Commission %</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium"></th>
               </tr>
@@ -98,10 +98,10 @@ export function StaffList() {
                     </Select>
                   </td>
                   <td className="px-4 py-3 text-slate-500">{p.phone ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-500">
+                  <td className="hidden px-4 py-3 text-slate-500 lg:table-cell">
                     {performance.find((x) => x.staffId === p.id)?.jobsCompleted ?? (p.role === 'technician' ? 0 : '—')}
                   </td>
-                  <td className="px-4 py-3 text-slate-500">{p.commission_rate != null ? `${p.commission_rate}%` : '—'}</td>
+                  <td className="hidden px-4 py-3 text-slate-500 lg:table-cell">{p.commission_rate != null ? `${p.commission_rate}%` : '—'}</td>
                   <td className="px-4 py-3">
                     <button onClick={() => toggleActive(p)}>
                       <Badge tone={p.is_active ? 'success' : 'danger'}>{p.is_active ? 'Active' : 'Disabled'}</Badge>
@@ -129,6 +129,50 @@ export function StaffList() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        <div className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
+          {staff.map((p) => (
+            <div key={p.id} className="p-4">
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{p.full_name}</span>
+                <button onClick={() => toggleActive(p)}>
+                  <Badge tone={p.is_active ? 'success' : 'danger'}>{p.is_active ? 'Active' : 'Disabled'}</Badge>
+                </button>
+              </div>
+              <div className="mt-1.5 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+                <div>{p.phone ?? '—'}</div>
+                <div>
+                  Jobs: {performance.find((x) => x.staffId === p.id)?.jobsCompleted ?? (p.role === 'technician' ? 0 : '—')}
+                  {' · '}
+                  Commission: {p.commission_rate != null ? `${p.commission_rate}%` : '—'}
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <Select value={p.role} onChange={(e) => updateRole(p, e.target.value as UserRole)} className="flex-1">
+                  {Object.entries(ROLE_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </Select>
+                <button
+                  onClick={() => setEditingStaff(p)}
+                  className="flex min-h-9 min-w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+                  title="Edit"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setDeletingStaff(p)}
+                  className="flex min-h-9 min-w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-danger-50 hover:text-danger-600 dark:hover:bg-danger-600/20"
+                  title="Delete"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </Card>
 

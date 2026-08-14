@@ -83,7 +83,7 @@ export function SellYourDevice() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-primary-50 to-slate-100 px-4 py-10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-100 via-primary-50 to-slate-100 px-4 py-10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <div className="mx-auto max-w-lg">
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-600 text-white">

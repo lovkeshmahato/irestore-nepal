@@ -52,35 +52,62 @@ export function VendorsList() {
         {vendors.length === 0 ? (
           <EmptyState title="No vendors yet" />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Contact</th>
-                  <th className="px-4 py-3 font-medium">Phone</th>
-                  <th className="px-4 py-3 font-medium">Items Supplied</th>
-                  <th className="px-4 py-3 font-medium">Outstanding</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {vendors.map((v) => {
-                  const due = outstanding[v.id] ?? 0
-                  return (
-                    <tr key={v.id} onClick={() => navigate(`/vendors/${v.id}`)} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                      <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{v.name}</td>
-                      <td className="px-4 py-3 text-slate-500">{v.contact_person ?? '—'}</td>
-                      <td className="px-4 py-3 text-slate-500">{v.phone ?? '—'}</td>
-                      <td className="px-4 py-3 text-slate-500">{v.items_supplied ?? '—'}</td>
-                      <td className={`px-4 py-3 font-medium ${due > 0 ? 'text-danger-600' : 'text-success-600'}`}>
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Name</th>
+                    <th className="hidden px-4 py-3 font-medium lg:table-cell">Contact</th>
+                    <th className="px-4 py-3 font-medium">Phone</th>
+                    <th className="hidden px-4 py-3 font-medium lg:table-cell">Items Supplied</th>
+                    <th className="px-4 py-3 font-medium">Outstanding</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {vendors.map((v) => {
+                    const due = outstanding[v.id] ?? 0
+                    return (
+                      <tr key={v.id} onClick={() => navigate(`/vendors/${v.id}`)} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{v.name}</td>
+                        <td className="hidden px-4 py-3 text-slate-500 lg:table-cell">{v.contact_person ?? '—'}</td>
+                        <td className="px-4 py-3 text-slate-500">{v.phone ?? '—'}</td>
+                        <td className="hidden px-4 py-3 text-slate-500 lg:table-cell">{v.items_supplied ?? '—'}</td>
+                        <td className={`px-4 py-3 font-medium ${due > 0 ? 'text-danger-600' : 'text-success-600'}`}>
+                          Rs. {due.toLocaleString()}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
+              {vendors.map((v) => {
+                const due = outstanding[v.id] ?? 0
+                return (
+                  <div
+                    key={v.id}
+                    onClick={() => navigate(`/vendors/${v.id}`)}
+                    className="cursor-pointer p-4 active:bg-slate-50 dark:active:bg-slate-800/50"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{v.name}</span>
+                      <span className={`text-xs font-medium ${due > 0 ? 'text-danger-600' : 'text-success-600'}`}>
                         Rs. {due.toLocaleString()}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </span>
+                    </div>
+                    <div className="mt-1.5 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+                      {v.contact_person && <div>{v.contact_person}</div>}
+                      <div>{v.phone ?? '—'}</div>
+                      {v.items_supplied && <div>{v.items_supplied}</div>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
         )}
       </Card>
 

@@ -27,7 +27,7 @@ export function ChipSelect({
             key={option}
             onClick={() => toggle(option)}
             className={clsx(
-              'rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+              'inline-flex min-h-9 items-center rounded-full border px-3.5 py-2 text-sm font-medium transition-colors',
               active
                 ? 'border-primary-600 bg-primary-50 text-primary-700 dark:bg-primary-600/20 dark:text-primary-100'
                 : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300'

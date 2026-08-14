@@ -3,6 +3,7 @@ import { Download } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { startOfDay, endOfDay, startOfWeek, startOfMonth, format, eachDayOfInterval } from 'date-fns'
 import { supabase } from '../../lib/supabase'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
@@ -43,7 +44,7 @@ const sectionLabelClasses = 'text-xs font-semibold uppercase tracking-wide text-
 
 function SectionHeader({ title, subtitle, onExport }: { title: string; subtitle?: string; onExport: () => void }) {
   return (
-    <div className="mb-4 flex items-start justify-between gap-3">
+    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 className={sectionLabelClasses}>{title}</h2>
         {subtitle && <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>}
@@ -60,6 +61,7 @@ export function Reports() {
   const [customStart, setCustomStart] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'))
   const [customEnd, setCustomEnd] = useState(() => format(new Date(), 'yyyy-MM-dd'))
   const [data, setData] = useState<ReportData | null>(null)
+  const isNarrow = useMediaQuery('(max-width: 480px)')
 
   const { rangeStart, rangeEnd } = useMemo(() => {
     const now = new Date()
@@ -213,10 +215,10 @@ export function Reports() {
       <PageHeader title="Reports" description="Revenue, performance, and inventory insights" />
 
       {/* Sticky filter bar */}
-      <Card className="sticky top-20 z-20 mb-6 flex flex-wrap items-end gap-3 p-4">
+      <Card className="sticky top-20 z-20 mb-6 flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end">
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-500">Date Range</label>
-          <Select value={preset} onChange={(e) => setPreset(e.target.value as RangePreset)} className="w-40">
+          <Select value={preset} onChange={(e) => setPreset(e.target.value as RangePreset)} className="w-full sm:w-40">
             <option value="today">Today</option>
             <option value="week">This Week</option>
             <option value="month">This Month</option>
@@ -224,14 +226,14 @@ export function Reports() {
           </Select>
         </div>
         {preset === 'custom' && (
-          <>
+          <div className="flex flex-col gap-3 sm:flex-row">
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-500">From</label>
               <input
                 type="date"
                 value={customStart}
                 onChange={(e) => setCustomStart(e.target.value)}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 sm:w-auto"
               />
             </div>
             <div>
@@ -240,24 +242,24 @@ export function Reports() {
                 type="date"
                 value={customEnd}
                 onChange={(e) => setCustomEnd(e.target.value)}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                className="min-h-11 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 sm:w-auto"
               />
             </div>
-          </>
+          </div>
         )}
       </Card>
 
       {/* Summary strip — the visual anchor of the page */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Card className="border-t-4 border-t-success-600 p-6">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4">
+        <Card className="border-t-4 border-t-success-600 p-4 sm:p-6">
           <p className={sectionLabelClasses}>Total Revenue (selected range)</p>
-          <p className="mt-2 text-4xl font-bold tabular-nums text-success-600 sm:text-5xl">
+          <p className="mt-2 text-2xl font-bold tabular-nums text-success-600 sm:text-4xl lg:text-5xl">
             Rs. {data.totalRevenueInRange.toLocaleString()}
           </p>
         </Card>
-        <Card className="border-t-4 border-t-danger-600 p-6">
+        <Card className="border-t-4 border-t-danger-600 p-4 sm:p-6">
           <p className={sectionLabelClasses}>Total Pending (all outstanding)</p>
-          <p className="mt-2 text-4xl font-bold tabular-nums text-danger-600 sm:text-5xl">
+          <p className="mt-2 text-2xl font-bold tabular-nums text-danger-600 sm:text-4xl lg:text-5xl">
             Rs. {data.totalPendingAllTime.toLocaleString()}
           </p>
         </Card>
@@ -272,10 +274,24 @@ export function Reports() {
             onExport={() => downloadCsv('revenue-report.csv', [['Day', 'Revenue'], ...data.revenueByDay.map((r) => [r.day, r.revenue])])}
           />
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={data.revenueByDay}>
+            <BarChart data={data.revenueByDay} margin={{ left: 0, right: 8 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#94a3b8" strokeOpacity={0.25} />
-              <XAxis dataKey="day" fontSize={11} tickLine={false} axisLine={false} stroke="#94a3b8" />
-              <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#94a3b8" tickFormatter={(v) => Number(v).toLocaleString()} />
+              <XAxis
+                dataKey="day"
+                fontSize={isNarrow ? 9 : 11}
+                tickLine={false}
+                axisLine={false}
+                interval={isNarrow && data.revenueByDay.length > 7 ? Math.ceil(data.revenueByDay.length / 6) - 1 : 0}
+                stroke="#94a3b8"
+              />
+              <YAxis
+                fontSize={isNarrow ? 9 : 11}
+                width={isNarrow ? 32 : 60}
+                tickLine={false}
+                axisLine={false}
+                stroke="#94a3b8"
+                tickFormatter={(v) => Number(v).toLocaleString()}
+              />
               <Tooltip formatter={(v) => `Rs. ${Number(v).toLocaleString()}`} />
               <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -297,10 +313,18 @@ export function Reports() {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={data.topDeviceModels} layout="vertical" margin={{ left: 8, right: 8 }}>
+                <BarChart data={data.topDeviceModels} layout="vertical" margin={{ left: 0, right: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#94a3b8" strokeOpacity={0.25} />
-                  <XAxis type="number" fontSize={11} tickLine={false} axisLine={false} stroke="#94a3b8" allowDecimals={false} />
-                  <YAxis type="category" dataKey="model" fontSize={11} tickLine={false} axisLine={false} width={90} stroke="#94a3b8" />
+                  <XAxis type="number" fontSize={isNarrow ? 10 : 11} tickLine={false} axisLine={false} stroke="#94a3b8" allowDecimals={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="model"
+                    fontSize={isNarrow ? 10 : 11}
+                    tickLine={false}
+                    axisLine={false}
+                    width={isNarrow ? 70 : 90}
+                    stroke="#94a3b8"
+                  />
                   <Tooltip />
                   <Bar dataKey="count" fill="#0891b2" radius={[0, 4, 4, 0]} />
                 </BarChart>
@@ -347,38 +371,61 @@ export function Reports() {
           {data.pendingInvoices.length === 0 ? (
             <p className="text-sm text-slate-400">No outstanding invoices.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs uppercase text-slate-400">
-                  <tr>
-                    <th className="pb-2">Invoice #</th>
-                    <th className="pb-2">Customer</th>
-                    <th className="pb-2">Created</th>
-                    <th className="pb-2 text-right">Balance Due</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {data.pendingInvoices.map((i) => (
-                    <tr key={i.id}>
-                      <td className="py-2 text-slate-800 dark:text-slate-200">{i.invoice_number}</td>
-                      <td className="py-2 text-slate-500">{i.customer}</td>
-                      <td className="py-2 text-slate-500">{new Date(i.created_at).toLocaleDateString()}</td>
-                      <td className="py-2 text-right font-semibold tabular-nums text-danger-600">Rs. {i.balance_due.toLocaleString()}</td>
+            <>
+              {/* Desktop/tablet table */}
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full text-sm">
+                  <thead className="text-left text-xs uppercase text-slate-400">
+                    <tr>
+                      <th className="pb-2">Invoice #</th>
+                      <th className="pb-2">Customer</th>
+                      <th className="pb-2">Created</th>
+                      <th className="pb-2 text-right">Balance Due</th>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t border-slate-200 font-semibold dark:border-slate-700">
-                    <td colSpan={3} className="py-2 text-slate-700 dark:text-slate-200">
-                      Total Pending
-                    </td>
-                    <td className="py-2 text-right tabular-nums text-danger-600">
-                      Rs. {data.pendingInvoices.reduce((s, i) => s + i.balance_due, 0).toLocaleString()}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {data.pendingInvoices.map((i) => (
+                      <tr key={i.id}>
+                        <td className="py-2 text-slate-800 dark:text-slate-200">{i.invoice_number}</td>
+                        <td className="py-2 text-slate-500">{i.customer}</td>
+                        <td className="py-2 text-slate-500">{new Date(i.created_at).toLocaleDateString()}</td>
+                        <td className="py-2 text-right font-semibold tabular-nums text-danger-600">Rs. {i.balance_due.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-slate-200 font-semibold dark:border-slate-700">
+                      <td colSpan={3} className="py-2 text-slate-700 dark:text-slate-200">
+                        Total Pending
+                      </td>
+                      <td className="py-2 text-right tabular-nums text-danger-600">
+                        Rs. {data.pendingInvoices.reduce((s, i) => s + i.balance_due, 0).toLocaleString()}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Mobile card list */}
+              <div className="space-y-2 md:hidden">
+                {data.pendingInvoices.map((i) => (
+                  <div key={i.id} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-semibold text-slate-900 dark:text-slate-100">{i.invoice_number}</p>
+                      <p className="shrink-0 font-semibold tabular-nums text-danger-600">Rs. {i.balance_due.toLocaleString()}</p>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{i.customer}</p>
+                    <p className="text-xs text-slate-400">{new Date(i.created_at).toLocaleDateString()}</p>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between rounded-lg border-t border-slate-200 pt-2 text-sm font-semibold dark:border-slate-700">
+                  <span className="text-slate-700 dark:text-slate-200">Total Pending</span>
+                  <span className="tabular-nums text-danger-600">
+                    Rs. {data.pendingInvoices.reduce((s, i) => s + i.balance_due, 0).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </>
           )}
         </Card>
 
@@ -404,7 +451,7 @@ export function Reports() {
               {lowStockParts.length > 0 && (
                 <p className="mb-2 text-sm text-danger-600">{lowStockParts.length} part(s) at or below reorder threshold</p>
               )}
-              <div className="max-h-64 overflow-y-auto">
+              <div className="hidden max-h-64 overflow-y-auto md:block">
                 <table className="w-full text-sm">
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {data.parts.map((p) => (
@@ -422,24 +469,52 @@ export function Reports() {
                   </tbody>
                 </table>
               </div>
+              <div className="max-h-64 space-y-1.5 overflow-y-auto md:hidden">
+                {data.parts.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700"
+                  >
+                    <span className="truncate text-sm text-slate-800 dark:text-slate-200">{p.name}</span>
+                    {p.stock_qty <= p.reorder_threshold ? (
+                      <Badge tone="danger">{p.stock_qty} left</Badge>
+                    ) : (
+                      <span className="shrink-0 text-sm tabular-nums text-slate-500">{p.stock_qty} in stock</span>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
             <div>
               <h3 className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">Parts Consumption (selected range)</h3>
               {data.partsConsumption.length === 0 ? (
                 <p className="text-sm text-slate-400">No parts used in this range.</p>
               ) : (
-                <div className="max-h-64 overflow-y-auto">
-                  <table className="w-full text-sm">
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {data.partsConsumption.map((p) => (
-                        <tr key={p.name}>
-                          <td className="py-2 text-slate-800 dark:text-slate-200">{p.name}</td>
-                          <td className="py-2 text-right tabular-nums text-slate-500">{p.quantity} used</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  <div className="hidden max-h-64 overflow-y-auto md:block">
+                    <table className="w-full text-sm">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {data.partsConsumption.map((p) => (
+                          <tr key={p.name}>
+                            <td className="py-2 text-slate-800 dark:text-slate-200">{p.name}</td>
+                            <td className="py-2 text-right tabular-nums text-slate-500">{p.quantity} used</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="max-h-64 space-y-1.5 overflow-y-auto md:hidden">
+                    {data.partsConsumption.map((p) => (
+                      <div
+                        key={p.name}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700"
+                      >
+                        <span className="truncate text-sm text-slate-800 dark:text-slate-200">{p.name}</span>
+                        <span className="shrink-0 text-sm tabular-nums text-slate-500">{p.quantity} used</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -458,24 +533,36 @@ export function Reports() {
           {data.technicianLeaderboard.length === 0 ? (
             <p className="text-sm text-slate-400">No jobs delivered in this range.</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs uppercase text-slate-400">
-                <tr>
-                  <th className="pb-2">Technician</th>
-                  <th className="pb-2">Jobs Closed</th>
-                  <th className="pb-2">Avg Turnaround</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {data.technicianLeaderboard.map((t) => (
-                  <tr key={t.name}>
-                    <td className="py-2 text-slate-800 dark:text-slate-200">{t.name}</td>
-                    <td className="py-2 tabular-nums text-slate-500">{t.jobsClosed}</td>
-                    <td className="py-2 tabular-nums text-slate-500">{t.avgTurnaroundDays} days</td>
+            <>
+              <table className="hidden w-full text-sm md:table">
+                <thead className="text-left text-xs uppercase text-slate-400">
+                  <tr>
+                    <th className="pb-2">Technician</th>
+                    <th className="pb-2">Jobs Closed</th>
+                    <th className="pb-2">Avg Turnaround</th>
                   </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {data.technicianLeaderboard.map((t) => (
+                    <tr key={t.name}>
+                      <td className="py-2 text-slate-800 dark:text-slate-200">{t.name}</td>
+                      <td className="py-2 tabular-nums text-slate-500">{t.jobsClosed}</td>
+                      <td className="py-2 tabular-nums text-slate-500">{t.avgTurnaroundDays} days</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="space-y-2 md:hidden">
+                {data.technicianLeaderboard.map((t) => (
+                  <div key={t.name} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                    <p className="font-semibold text-slate-900 dark:text-slate-100">{t.name}</p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      {t.jobsClosed} job{t.jobsClosed === 1 ? '' : 's'} closed · {t.avgTurnaroundDays} days avg turnaround
+                    </p>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </>
           )}
         </Card>
 

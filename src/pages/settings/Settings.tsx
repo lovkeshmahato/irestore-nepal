@@ -83,7 +83,7 @@ export function Settings() {
             <FormRow label="Address">
               <Input value={settings.address ?? ''} onChange={(e) => setSettings({ ...settings, address: e.target.value })} />
             </FormRow>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormRow label="Phone">
                 <Input value={settings.phone ?? ''} onChange={(e) => setSettings({ ...settings, phone: e.target.value })} />
               </FormRow>
@@ -94,7 +94,7 @@ export function Settings() {
             <FormRow label="PAN / VAT Number">
               <Input value={settings.pan_vat_number ?? ''} onChange={(e) => setSettings({ ...settings, pan_vat_number: e.target.value })} />
             </FormRow>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormRow label="Default Tax Rate (%)">
                 <Input
                   type="number"
@@ -125,7 +125,7 @@ export function Settings() {
         <div className="space-y-6">
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Warranty Defaults (days)</h2>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {Object.entries(settings.warranty_defaults).map(([key, value]) => (
                 <FormRow key={key} label={key.charAt(0).toUpperCase() + key.slice(1)}>
                   <Input
@@ -142,7 +142,7 @@ export function Settings() {
 
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Numbering</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormRow label="Job Sheet Prefix">
                 <Input value={settings.job_sheet_prefix} onChange={(e) => setSettings({ ...settings, job_sheet_prefix: e.target.value })} />
               </FormRow>
@@ -181,7 +181,7 @@ export function Settings() {
 
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Notification Preferences</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormRow label="Low stock threshold (default)">
                 <Input
                   type="number"
