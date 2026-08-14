@@ -12,7 +12,21 @@ export function usePrintSettings() {
   return settings
 }
 
-export function PrintLayout({ title, children }: { title: string; children: ReactNode }) {
+export function PrintLayout({
+  title,
+  children,
+  showLogo = true,
+  showAddress = true,
+  showPhone = true,
+  showEmail = true,
+}: {
+  title: string
+  children: ReactNode
+  showLogo?: boolean
+  showAddress?: boolean
+  showPhone?: boolean
+  showEmail?: boolean
+}) {
   const settings = usePrintSettings()
 
   return (
@@ -26,15 +40,19 @@ export function PrintLayout({ title, children }: { title: string; children: Reac
       <div id="printable-area" className="mx-auto max-w-3xl bg-white p-8 shadow-sm print:shadow-none dark:bg-slate-900 print:dark:bg-white">
         <div className="mb-6 flex items-start justify-between border-b border-slate-200 pb-4 print:text-black">
           <div className="flex items-center gap-3">
-            {settings?.logo_url && <img src={settings.logo_url} alt="" className="h-12 w-12 object-contain" />}
+            {showLogo && settings?.logo_url && <img src={settings.logo_url} alt="" className="h-12 w-12 object-contain" />}
             <div>
               <h1 className="text-lg font-bold text-slate-900 print:text-black dark:text-slate-50">
                 {settings?.business_name ?? 'i-Restore'}
               </h1>
-              <p className="text-xs text-slate-500 print:text-black">{settings?.address}</p>
-              <p className="text-xs text-slate-500 print:text-black">
-                {settings?.phone} {settings?.email && `· ${settings.email}`}
-              </p>
+              {showAddress && <p className="text-xs text-slate-500 print:text-black">{settings?.address}</p>}
+              {(showPhone || showEmail) && (
+                <p className="text-xs text-slate-500 print:text-black">
+                  {showPhone && settings?.phone}
+                  {showPhone && showEmail && settings?.phone && settings?.email && ' · '}
+                  {showEmail && settings?.email}
+                </p>
+              )}
               {settings?.pan_vat_number && <p className="text-xs text-slate-500 print:text-black">PAN/VAT: {settings.pan_vat_number}</p>}
             </div>
           </div>

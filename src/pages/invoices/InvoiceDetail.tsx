@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Printer, Plus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import type { Invoice, InvoiceItem, Payment, CreditNote } from '../../types'
+import type { Invoice, Payment, CreditNote } from '../../types'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -27,7 +27,6 @@ export function InvoiceDetail() {
   const navigate = useNavigate()
   const { profile } = useAuth()
   const [invoice, setInvoice] = useState<Invoice | null>(null)
-  const [items, setItems] = useState<InvoiceItem[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>([])
   const [showPayment, setShowPayment] = useState(false)
@@ -35,14 +34,12 @@ export function InvoiceDetail() {
 
   async function load() {
     if (!id) return
-    const [{ data: inv }, { data: its }, { data: pays }, { data: credits }] = await Promise.all([
-      supabase.from('invoices').select('*, customers(*)').eq('id', id).single(),
-      supabase.from('invoice_items').select('*').eq('invoice_id', id),
+    const [{ data: inv }, { data: pays }, { data: credits }] = await Promise.all([
+      supabase.from('invoices').select('*, customers(*), job_sheets(job_number)').eq('id', id).single(),
       supabase.from('payments').select('*').eq('invoice_id', id).order('paid_at', { ascending: false }),
       supabase.from('credit_notes').select('*').eq('invoice_id', id).order('created_at', { ascending: false }),
     ])
     setInvoice(inv as Invoice)
-    setItems(its ?? [])
     setPayments(pays ?? [])
     setCreditNotes(credits ?? [])
   }
@@ -84,40 +81,42 @@ export function InvoiceDetail() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Line Items</h2>
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs uppercase text-slate-400">
-                <tr>
-                  <th className="pb-2">Description</th>
-                  <th className="pb-2">Qty</th>
-                  <th className="pb-2">Unit Price</th>
-                  <th className="pb-2 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="py-2 text-slate-800 dark:text-slate-200">{item.description}</td>
-                    <td className="py-2 text-slate-500">{item.quantity}</td>
-                    <td className="py-2 text-slate-500">Rs. {item.unit_price.toLocaleString()}</td>
-                    <td className="py-2 text-right text-slate-800 dark:text-slate-200">Rs. {item.total.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Charges</h2>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Repair Charge</span>
+                <span className="text-slate-800 dark:text-slate-200">Rs. {invoice.repair_charge.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Parts Cost</span>
+                <span className="text-slate-800 dark:text-slate-200">Rs. {invoice.parts_cost.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Labour Charge</span>
+                <span className="text-slate-800 dark:text-slate-200">Rs. {invoice.labour_charge.toLocaleString()}</span>
+              </div>
+            </div>
             <div className="mt-4 space-y-1 border-t border-slate-100 pt-3 text-sm dark:border-slate-800">
               <div className="flex justify-between">
                 <span className="text-slate-500">Subtotal</span>
                 <span>Rs. {invoice.subtotal.toLocaleString()}</span>
               </div>
+              {invoice.discount_amount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">
+                    Discount ({invoice.discount_type === 'percent' ? `${invoice.discount_value}%` : 'fixed'})
+                  </span>
+                  <span className="text-danger-600">-Rs. {invoice.discount_amount.toLocaleString()}</span>
+                </div>
+              )}
               {invoice.vat_enabled && (
                 <div className="flex justify-between">
                   <span className="text-slate-500">VAT ({invoice.vat_rate}%)</span>
                   <span>Rs. {invoice.vat_amount.toLocaleString()}</span>
                 </div>
               )}
-              <div className="flex justify-between text-base font-semibold text-slate-900 dark:text-slate-50">
-                <span>Total</span>
+              <div className="flex justify-between text-base font-semibold text-primary-600">
+                <span>Grand Total</span>
                 <span>Rs. {invoice.total.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-success-600">
@@ -129,6 +128,12 @@ export function InvoiceDetail() {
                 <span>Rs. {invoice.balance_due.toLocaleString()}</span>
               </div>
             </div>
+            {invoice.notes && (
+              <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-800">
+                <p className="text-xs text-slate-400">Notes</p>
+                <p className="text-sm text-slate-700 dark:text-slate-200">{invoice.notes}</p>
+              </div>
+            )}
           </Card>
 
           <Card className="p-5">
@@ -152,8 +157,16 @@ export function InvoiceDetail() {
 
         <div className="space-y-6">
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Tax Info</h2>
-            <p className="text-sm text-slate-600 dark:text-slate-300">PAN/VAT: {invoice.pan_vat_number ?? '—'}</p>
+            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Details</h2>
+            <div className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
+              <p>PAN/VAT: {invoice.pan_vat_number ?? '—'}</p>
+              {invoice.job_sheets?.job_number && (
+                <button onClick={() => navigate(`/job-sheets/${invoice.job_sheet_id}`)} className="text-primary-600 hover:underline">
+                  Job Sheet: {invoice.job_sheets.job_number}
+                </button>
+              )}
+              {invoice.payment_method && <p className="capitalize">Payment Method: {invoice.payment_method.replace('_', ' ')}</p>}
+            </div>
           </Card>
 
           {profile && ['super_admin', 'admin', 'accountant'].includes(profile.role) && (

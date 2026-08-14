@@ -1,25 +1,22 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import type { Invoice, InvoiceItem, Payment } from '../types'
+import type { Invoice, Payment } from '../types'
 import { FullPageSpinner } from '../components/ui/Spinner'
 import { PrintLayout } from './PrintLayout'
 
 export function InvoicePrint() {
   const { id } = useParams()
   const [invoice, setInvoice] = useState<Invoice | null>(null)
-  const [items, setItems] = useState<InvoiceItem[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
 
   useEffect(() => {
     if (!id) return
     Promise.all([
       supabase.from('invoices').select('*, customers(*)').eq('id', id).single(),
-      supabase.from('invoice_items').select('*').eq('invoice_id', id),
       supabase.from('payments').select('*').eq('invoice_id', id),
-    ]).then(([inv, its, pays]) => {
+    ]).then(([inv, pays]) => {
       setInvoice(inv.data as Invoice)
-      setItems(its.data ?? [])
       setPayments(pays.data ?? [])
     })
   }, [id])
@@ -27,7 +24,13 @@ export function InvoicePrint() {
   if (!invoice) return <FullPageSpinner />
 
   return (
-    <PrintLayout title="Invoice">
+    <PrintLayout
+      title="Invoice"
+      showLogo={invoice.doc_show_logo}
+      showAddress={invoice.doc_show_address}
+      showPhone={invoice.doc_show_phone}
+      showEmail={invoice.doc_show_email}
+    >
       <div className="mb-4 flex items-start justify-between print:text-black">
         <div>
           <h3 className="text-xl font-bold text-slate-900 print:text-black dark:text-slate-50">{invoice.invoice_number}</h3>
@@ -44,20 +47,28 @@ export function InvoicePrint() {
         <thead className="border-b border-slate-300 text-left text-xs uppercase text-slate-400 print:text-black">
           <tr>
             <th className="pb-2">Description</th>
-            <th className="pb-2">Qty</th>
-            <th className="pb-2">Unit Price</th>
-            <th className="pb-2 text-right">Total</th>
+            <th className="pb-2 text-right">Amount</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {items.map((item) => (
-            <tr key={item.id}>
-              <td className="py-2 text-slate-800 print:text-black dark:text-slate-200">{item.description}</td>
-              <td className="py-2 text-slate-500 print:text-black">{item.quantity}</td>
-              <td className="py-2 text-slate-500 print:text-black">Rs. {item.unit_price.toLocaleString()}</td>
-              <td className="py-2 text-right text-slate-800 print:text-black dark:text-slate-200">Rs. {item.total.toLocaleString()}</td>
+          {invoice.repair_charge > 0 && (
+            <tr>
+              <td className="py-2 text-slate-800 print:text-black dark:text-slate-200">Repair Charge</td>
+              <td className="py-2 text-right text-slate-800 print:text-black dark:text-slate-200">Rs. {invoice.repair_charge.toLocaleString()}</td>
             </tr>
-          ))}
+          )}
+          {invoice.parts_cost > 0 && (
+            <tr>
+              <td className="py-2 text-slate-800 print:text-black dark:text-slate-200">Parts Cost</td>
+              <td className="py-2 text-right text-slate-800 print:text-black dark:text-slate-200">Rs. {invoice.parts_cost.toLocaleString()}</td>
+            </tr>
+          )}
+          {invoice.labour_charge > 0 && (
+            <tr>
+              <td className="py-2 text-slate-800 print:text-black dark:text-slate-200">Labour Charge</td>
+              <td className="py-2 text-right text-slate-800 print:text-black dark:text-slate-200">Rs. {invoice.labour_charge.toLocaleString()}</td>
+            </tr>
+          )}
         </tbody>
       </table>
 
@@ -67,14 +78,20 @@ export function InvoicePrint() {
             <span className="text-slate-500 print:text-black">Subtotal</span>
             <span className="print:text-black">Rs. {invoice.subtotal.toLocaleString()}</span>
           </div>
-          {invoice.vat_enabled && (
+          {invoice.discount_amount > 0 && (
+            <div className="flex justify-between">
+              <span className="text-slate-500 print:text-black">Discount</span>
+              <span className="print:text-black">-Rs. {invoice.discount_amount.toLocaleString()}</span>
+            </div>
+          )}
+          {invoice.doc_show_vat && (
             <div className="flex justify-between">
               <span className="text-slate-500 print:text-black">VAT ({invoice.vat_rate}%)</span>
               <span className="print:text-black">Rs. {invoice.vat_amount.toLocaleString()}</span>
             </div>
           )}
           <div className="flex justify-between border-t border-slate-200 pt-1 text-base font-semibold print:text-black">
-            <span>Total</span>
+            <span>Grand Total</span>
             <span>Rs. {invoice.total.toLocaleString()}</span>
           </div>
           <div className="flex justify-between print:text-black">
@@ -96,6 +113,13 @@ export function InvoicePrint() {
               Rs. {p.amount.toLocaleString()} via {p.method.replace('_', ' ')} on {new Date(p.paid_at).toLocaleDateString()}
             </p>
           ))}
+        </div>
+      )}
+
+      {invoice.notes && (
+        <div className="mt-4 text-sm print:text-black">
+          <h4 className="mb-1 text-xs font-semibold uppercase text-slate-400 print:text-black">Notes</h4>
+          <p className="text-slate-600 print:text-black dark:text-slate-300">{invoice.notes}</p>
         </div>
       )}
 

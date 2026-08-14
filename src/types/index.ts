@@ -34,6 +34,21 @@ export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
   declined: 'Declined/Cancelled',
 }
 
+export type DeviceCondition = 'good' | 'fair' | 'poor' | 'damaged'
+export const DEVICE_CONDITION_LABELS: Record<DeviceCondition, string> = {
+  good: 'Good',
+  fair: 'Fair',
+  poor: 'Poor',
+  damaged: 'Damaged',
+}
+
+export type JobPriority = 'normal' | 'high' | 'urgent'
+export const JOB_PRIORITY_LABELS: Record<JobPriority, string> = {
+  normal: 'Normal',
+  high: 'High',
+  urgent: 'Urgent',
+}
+
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'partially_paid' | 'overdue'
 export type WarrantyStatus = 'active' | 'expired' | 'claimed'
 export type WarrantyClaimStatus = 'open' | 'in_progress' | 'resolved' | 'rejected'
@@ -107,6 +122,17 @@ export interface Device {
   updated_at: string
 }
 
+export interface LegacyServiceRecord {
+  id: string
+  customer_id: string
+  device: string
+  issue: string
+  service_date: string | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+}
+
 export interface ConditionChecklist {
   screen?: boolean
   back_glass?: boolean
@@ -131,6 +157,12 @@ export interface JobSheet {
   approval_timestamp: string | null
   approval_method: string | null
   warranty_period_days: number | null
+  device_condition: DeviceCondition | null
+  physical_damage_details: string | null
+  icloud_account: string | null
+  security_notes: string | null
+  estimated_completion_date: string | null
+  priority: JobPriority
   created_by: string | null
   created_at: string
   updated_at: string
@@ -230,10 +262,23 @@ export interface Invoice {
   balance_due: number
   status: InvoiceStatus
   notes: string | null
+  repair_charge: number
+  parts_cost: number
+  labour_charge: number
+  discount_type: 'fixed' | 'percent'
+  discount_value: number
+  discount_amount: number
+  payment_method: string | null
+  doc_show_vat: boolean
+  doc_show_logo: boolean
+  doc_show_address: boolean
+  doc_show_phone: boolean
+  doc_show_email: boolean
   created_by: string | null
   created_at: string
   updated_at: string
   customers?: Customer
+  job_sheets?: { job_number: string }
 }
 
 export interface InvoiceItem {
@@ -346,19 +391,6 @@ export interface SellRequest {
   offer_notes: string | null
   created_at: string
   updated_at: string
-}
-
-export interface Appointment {
-  id: string
-  name: string
-  phone: string
-  device: string
-  issue: string
-  preferred_date: string
-  preferred_time_slot: string
-  status: 'pending' | 'converted' | 'cancelled'
-  converted_job_sheet_id: string | null
-  created_at: string
 }
 
 export interface StaffAttendance {
