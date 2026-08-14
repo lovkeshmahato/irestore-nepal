@@ -61,9 +61,9 @@ export function WarrantyPrint() {
         <h4 className="mb-1 text-xs font-semibold uppercase text-slate-400 print:text-black">What's Covered</h4>
         <p className="text-slate-700 print:text-black dark:text-slate-300">
           This warranty covers defects in workmanship and/or the installed part described above under normal use.
-          It does not cover physical damage, liquid damage, or unauthorized repairs performed elsewhere after this
-          service. This is an in-house warranty issued by {settings?.business_name ?? 'i-Restore'}, an independent
-          repair centre, and is not affiliated with or backed by any device manufacturer.
+          It does not cover physical damage, liquid damage, or repairs performed elsewhere after this service. This
+          is an in-house warranty issued by {settings?.business_name ?? 'i-Restore'} and is not affiliated with or
+          backed by any device manufacturer.
         </p>
       </div>
 

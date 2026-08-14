@@ -385,6 +385,8 @@ export interface SellRequest {
   storage_capacity: string | null
   condition_self_report: Record<string, boolean>
   accessories: string[]
+  device_issues: string[]
+  issue_details: string | null
   additional_details: string | null
   status: SellRequestStatus
   offer_price: number | null
@@ -392,6 +394,16 @@ export interface SellRequest {
   created_at: string
   updated_at: string
 }
+
+export const DEVICE_ISSUE_OPTIONS = [
+  'Screen Damage',
+  'Battery Issue',
+  'Water Damage',
+  'Button/Port Issue',
+  'Software Issue',
+  'No Known Issues',
+  'Other',
+] as const
 
 export interface StaffAttendance {
   id: string
@@ -418,5 +430,22 @@ export interface Settings {
   job_sheet_next_number: number
   low_stock_threshold_default: number
   overdue_reminder_days: number
+  default_tax_rate: number
+  print_header_alignment: 'left' | 'center'
+  terms_conditions_text: string
   updated_at: string
+}
+
+export interface VendorPayment {
+  id: string
+  vendor_id: string
+  po_id: string | null
+  amount: number
+  method: string
+  is_advance: boolean
+  payment_date: string
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  purchase_orders?: { po_number: string }
 }

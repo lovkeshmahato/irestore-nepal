@@ -64,8 +64,7 @@ export function BuybackPrint() {
       </div>
 
       <p className="mt-6 border-t border-slate-200 pt-3 text-xs text-slate-400 print:text-black">
-        By signing below, the seller confirms ownership of the device and agrees to the sale terms above. This
-        receipt is issued by an independent device buyback & repair centre.
+        By signing below, the seller confirms ownership of the device and agrees to the sale terms above.
       </p>
     </PrintLayout>
   )
