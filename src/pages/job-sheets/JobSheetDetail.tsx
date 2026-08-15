@@ -1,23 +1,35 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Printer, Lock, ShieldCheck, FileText } from 'lucide-react'
+import { ArrowLeft, Printer, Lock, ShieldCheck, FileText, Pencil, Trash2 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import type { JobSheet, JobStatus, JobStatusHistory, Profile, Warranty, JobPriority } from '../../types'
+import type { JobSheet, JobStatus, JobStatusHistory, Profile, Warranty, JobPriority, ConditionChecklist, DeviceCondition } from '../../types'
 import { JOB_STATUS_LABELS, DEVICE_CONDITION_LABELS, JOB_PRIORITY_LABELS } from '../../types'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { Input, Select } from '../../components/ui/Field'
+import { Input, Select, TextArea, FormRow } from '../../components/ui/Field'
 import { Badge, StatusBadge } from '../../components/ui/Badge'
 import { FullPageSpinner } from '../../components/ui/Spinner'
+import { Modal } from '../../components/ui/Modal'
+import { ChipSelect } from '../../components/ui/ChipSelect'
 import { StatusPipeline } from './components/StatusPipeline'
 import { PartsUsedSection } from './components/PartsUsedSection'
 import { NotesThread } from './components/NotesThread'
 import { EstimateSection } from './components/EstimateSection'
 import { JobPhotosSection } from './components/JobPhotosSection'
 import { formatDistanceToNow } from 'date-fns'
+
+const DEVICE_TYPES = ['iPhone', 'iPad', 'MacBook', 'iMac', 'Apple Watch', 'AirPods', 'Other']
+const ACCESSORY_OPTIONS = ['Charger', 'Cable', 'Box', 'Case', 'SIM', 'Other']
+const CHECKLIST_ITEMS: { key: keyof ConditionChecklist; label: string }[] = [
+  { key: 'screen', label: 'Screen damage' },
+  { key: 'back_glass', label: 'Back glass damage' },
+  { key: 'buttons', label: 'Button issues' },
+  { key: 'water_damage', label: 'Water damage signs' },
+  { key: 'prior_repair_signs', label: 'Prior repair signs' },
+]
 
 export function JobSheetDetail() {
   const { id } = useParams()
@@ -28,12 +40,15 @@ export function JobSheetDetail() {
   const [technicians, setTechnicians] = useState<Profile[]>([])
   const [warranty, setWarranty] = useState<Warranty | null>(null)
   const [invoiceId, setInvoiceId] = useState<string | null>(null)
+  const [showEdit, setShowEdit] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
 
   const isTechAssigned = profile?.role === 'technician' && job?.assigned_technician_id === profile.id
   const canManage = profile && ['super_admin', 'admin', 'front_desk'].includes(profile.role)
   const canChangeStatus = canManage || isTechAssigned
   const canSeeFinancials = profile && ['super_admin', 'admin', 'front_desk', 'accountant'].includes(profile.role)
   const canSeeSecurity = !!canManage || !!isTechAssigned
+  const canDelete = profile?.role === 'super_admin'
 
   async function load() {
     if (!id) return
@@ -126,6 +141,16 @@ export function JobSheetDetail() {
             </Button>
             {canManage && !invoiceId && ['delivered', 'ready_for_pickup', 'qc'].includes(job.status) && (
               <Button onClick={() => navigate(`/invoices/new?jobSheetId=${job.id}`)}>Generate Invoice</Button>
+            )}
+            {canManage && (
+              <Button variant="secondary" onClick={() => setShowEdit(true)}>
+                <Pencil className="h-4 w-4" /> Edit
+              </Button>
+            )}
+            {canDelete && (
+              <Button variant="danger" onClick={() => setShowDelete(true)}>
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
             )}
           </>
         }
@@ -316,6 +341,308 @@ export function JobSheetDetail() {
           </Card>
         </div>
       </div>
+
+      <EditJobSheetModal
+        open={showEdit}
+        job={job}
+        canSeeSecurity={canSeeSecurity}
+        onClose={() => setShowEdit(false)}
+        onSaved={() => {
+          setShowEdit(false)
+          load()
+        }}
+      />
+      <DeleteJobSheetModal
+        open={showDelete}
+        job={job}
+        onClose={() => setShowDelete(false)}
+        onDeleted={() => navigate('/job-sheets')}
+      />
     </div>
+  )
+}
+
+function EditJobSheetModal({
+  open,
+  job,
+  canSeeSecurity,
+  onClose,
+  onSaved,
+}: {
+  open: boolean
+  job: JobSheet
+  canSeeSecurity: boolean
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [deviceType, setDeviceType] = useState('iPhone')
+  const [model, setModel] = useState('')
+  const [imei, setImei] = useState('')
+  const [color, setColor] = useState('')
+  const [deviceCondition, setDeviceCondition] = useState<DeviceCondition>('good')
+  const [accessories, setAccessories] = useState<string[]>([])
+  const [reportedIssue, setReportedIssue] = useState('')
+  const [physicalDamageDetails, setPhysicalDamageDetails] = useState('')
+  const [checklist, setChecklist] = useState<ConditionChecklist>({})
+  const [passcode, setPasscode] = useState('')
+  const [icloudAccount, setIcloudAccount] = useState('')
+  const [securityNotes, setSecurityNotes] = useState('')
+  const [estimatedCost, setEstimatedCost] = useState<number | ''>('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setDeviceType(job.devices?.device_type ?? 'iPhone')
+    setModel(job.devices?.model ?? '')
+    setImei(job.devices?.imei ?? '')
+    setColor(job.devices?.color ?? '')
+    setDeviceCondition(job.device_condition ?? 'good')
+    setAccessories(job.accessories_received ?? [])
+    setReportedIssue(job.reported_issue ?? '')
+    setPhysicalDamageDetails(job.physical_damage_details ?? '')
+    setChecklist(job.condition_checklist ?? {})
+    setPasscode(job.passcode ?? '')
+    setIcloudAccount(job.icloud_account ?? '')
+    setSecurityNotes(job.security_notes ?? '')
+    setEstimatedCost(job.estimated_cost ?? '')
+    setError(null)
+  }, [open, job])
+
+  async function handleSubmit() {
+    if (!model.trim() || !reportedIssue.trim()) {
+      setError('Device model and reported issue are required.')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      const { error: deviceError } = await supabase
+        .from('devices')
+        .update({ device_type: deviceType, model, color: color || null, imei: imei || null })
+        .eq('id', job.device_id)
+      if (deviceError) throw deviceError
+
+      const jobPatch: Partial<JobSheet> = {
+        reported_issue: reportedIssue,
+        physical_damage_details: physicalDamageDetails || null,
+        device_condition: deviceCondition,
+        accessories_received: accessories,
+        condition_checklist: checklist,
+        estimated_cost: estimatedCost === '' ? null : estimatedCost,
+      }
+      if (canSeeSecurity) {
+        jobPatch.passcode = passcode || null
+        jobPatch.icloud_account = icloudAccount || null
+        jobPatch.security_notes = securityNotes || null
+      }
+      const { error: jobError } = await supabase.from('job_sheets').update(jobPatch).eq('id', job.id)
+      if (jobError) throw jobError
+
+      onSaved()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save changes')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Edit Job Sheet" size="xl">
+      <div className="space-y-6">
+        <div>
+          <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Device Information</h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormRow label="Device type" required>
+              <Select value={deviceType} onChange={(e) => setDeviceType(e.target.value)}>
+                {DEVICE_TYPES.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </Select>
+            </FormRow>
+            <FormRow label="Device model" required>
+              <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. iPhone 13 Pro" />
+            </FormRow>
+            <FormRow label="IMEI / Serial Number">
+              <Input value={imei} onChange={(e) => setImei(e.target.value)} />
+            </FormRow>
+            <FormRow label="Device color">
+              <Input value={color} onChange={(e) => setColor(e.target.value)} />
+            </FormRow>
+            <FormRow label="Device condition" required>
+              <Select value={deviceCondition} onChange={(e) => setDeviceCondition(e.target.value as DeviceCondition)}>
+                <option value="good">Good</option>
+                <option value="fair">Fair</option>
+                <option value="poor">Poor</option>
+                <option value="damaged">Damaged</option>
+              </Select>
+            </FormRow>
+          </div>
+          <FormRow label="Accessories submitted">
+            <ChipSelect options={ACCESSORY_OPTIONS} value={accessories} onChange={setAccessories} />
+          </FormRow>
+        </div>
+
+        <div>
+          <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Issue Details</h3>
+          <FormRow label="Reported issue" required>
+            <TextArea rows={3} value={reportedIssue} onChange={(e) => setReportedIssue(e.target.value)} />
+          </FormRow>
+          <FormRow label="Physical damage details">
+            <TextArea rows={2} value={physicalDamageDetails} onChange={(e) => setPhysicalDamageDetails(e.target.value)} />
+          </FormRow>
+          <h4 className="mb-2 mt-4 text-xs font-semibold uppercase text-slate-400">Condition Checklist</h4>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {CHECKLIST_ITEMS.map((item) => (
+              <label key={item.key} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={!!checklist[item.key]}
+                  onChange={(e) => setChecklist((c) => ({ ...c, [item.key]: e.target.checked }))}
+                  className="h-4 w-4 rounded border-slate-300 text-primary-600"
+                />
+                {item.label}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {canSeeSecurity && (
+          <div>
+            <h3 className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">Device Security Details</h3>
+            <p className="mb-3 text-xs text-slate-400">Sensitive — cleared automatically once delivered.</p>
+            <div className="space-y-4">
+              <FormRow label="Device PIN / Password">
+                <Input value={passcode} onChange={(e) => setPasscode(e.target.value)} />
+              </FormRow>
+              <FormRow label="iCloud / Apple ID account">
+                <Input value={icloudAccount} onChange={(e) => setIcloudAccount(e.target.value)} />
+              </FormRow>
+              <FormRow label="Security notes">
+                <TextArea rows={2} value={securityNotes} onChange={(e) => setSecurityNotes(e.target.value)} />
+              </FormRow>
+            </div>
+          </div>
+        )}
+
+        <div>
+          <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Estimate</h3>
+          <FormRow label="Estimated cost (NPR)">
+            <Input
+              type="number"
+              min={0}
+              value={estimatedCost}
+              onChange={(e) => setEstimatedCost(e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
+            />
+          </FormRow>
+        </div>
+
+        {error && <p className="text-sm text-danger-600">{error}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSubmit} disabled={saving}>
+            {saving ? 'Saving…' : 'Save Changes'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function DeleteJobSheetModal({
+  open,
+  job,
+  onClose,
+  onDeleted,
+}: {
+  open: boolean
+  job: JobSheet
+  onClose: () => void
+  onDeleted: () => void
+}) {
+  const [working, setWorking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [blocked, setBlocked] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setError(null)
+    setBlocked(null)
+  }, [open])
+
+  async function handleConfirm() {
+    setWorking(true)
+    setError(null)
+    setBlocked(null)
+
+    const [{ count: invoiceCount, error: invError }, { count: warrantyCount, error: warError }] = await Promise.all([
+      supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('job_sheet_id', job.id),
+      supabase.from('warranties').select('id', { count: 'exact', head: true }).eq('job_sheet_id', job.id),
+    ])
+
+    if (invError || warError) {
+      setWorking(false)
+      setError((invError ?? warError)?.message ?? 'Could not check linked records.')
+      return
+    }
+
+    if ((invoiceCount ?? 0) > 0 || (warrantyCount ?? 0) > 0) {
+      setWorking(false)
+      setBlocked(
+        `Cannot delete — this job sheet has ${invoiceCount ?? 0} invoice(s) and ${warrantyCount ?? 0} warranty(ies) linked. Delete those first if you really need to remove this record.`
+      )
+      return
+    }
+
+    try {
+      await supabase.from('job_status_history').delete().eq('job_sheet_id', job.id)
+      await supabase.from('job_photos').delete().eq('job_sheet_id', job.id)
+      await supabase.from('job_notes').delete().eq('job_sheet_id', job.id)
+      await supabase.from('job_parts_used').delete().eq('job_sheet_id', job.id)
+      await supabase.from('part_serials').update({ job_sheet_id: null, status: 'in_stock' }).eq('job_sheet_id', job.id)
+
+      const { error: jobDeleteError } = await supabase.from('job_sheets').delete().eq('id', job.id)
+      if (jobDeleteError) throw jobDeleteError
+
+      const { count: otherJobsWithDevice } = await supabase
+        .from('job_sheets')
+        .select('id', { count: 'exact', head: true })
+        .eq('device_id', job.device_id)
+      if (!otherJobsWithDevice || otherJobsWithDevice === 0) {
+        await supabase.from('devices').delete().eq('id', job.device_id)
+      }
+
+      onDeleted()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete job sheet')
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Delete Job Sheet" size="sm">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          This will <span className="font-semibold text-danger-600">permanently delete</span> job sheet{' '}
+          <span className="font-semibold">{job.job_number}</span>, including its full status timeline, photos, notes, and
+          parts-used records. Any serialized parts used on this job will be unlinked and returned to stock as{' '}
+          <span className="font-medium">in stock</span>. If the associated device isn&apos;t referenced by any other job
+          sheet, its record will be removed too. This action cannot be undone.
+        </p>
+        {error && <p className="text-sm text-danger-600">{error}</p>}
+        {blocked && <p className="text-sm text-danger-600">{blocked}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" variant="danger" onClick={handleConfirm} disabled={working || !!blocked}>
+            {working ? 'Deleting…' : 'Delete Permanently'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   )
 }

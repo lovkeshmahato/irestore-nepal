@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Search, AlertTriangle } from 'lucide-react'
+import { Plus, Search, AlertTriangle, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { Part } from '../../types'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -9,6 +9,7 @@ import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { FullPageSpinner } from '../../components/ui/Spinner'
+import { Modal } from '../../components/ui/Modal'
 import { PartFormModal } from './PartFormModal'
 import { StockAdjustModal } from './StockAdjustModal'
 
@@ -18,6 +19,7 @@ export function InventoryList() {
   const [showForm, setShowForm] = useState(false)
   const [editingPart, setEditingPart] = useState<Part | null>(null)
   const [adjustingPart, setAdjustingPart] = useState<Part | null>(null)
+  const [deletingPart, setDeletingPart] = useState<Part | null>(null)
 
   async function load() {
     let query = supabase.from('parts').select('*').order('name')
@@ -98,9 +100,18 @@ export function InventoryList() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <Button size="sm" variant="secondary" onClick={() => setAdjustingPart(p)}>
-                            Adjust Stock
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button size="sm" variant="secondary" onClick={() => setAdjustingPart(p)}>
+                              Adjust Stock
+                            </Button>
+                            <button
+                              onClick={() => setDeletingPart(p)}
+                              className="rounded-lg p-1.5 text-slate-400 hover:bg-danger-50 hover:text-danger-600 dark:hover:bg-danger-600/20"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -135,10 +146,17 @@ export function InventoryList() {
                         Stock: {p.stock_qty}
                       </div>
                     </div>
-                    <div className="mt-3">
+                    <div className="mt-3 flex items-center gap-2">
                       <Button size="sm" variant="secondary" onClick={() => setAdjustingPart(p)}>
                         Adjust Stock
                       </Button>
+                      <button
+                        onClick={() => setDeletingPart(p)}
+                        className="flex min-h-9 min-w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-danger-50 hover:text-danger-600 dark:hover:bg-danger-600/20"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
                 )
@@ -166,6 +184,99 @@ export function InventoryList() {
           load()
         }}
       />
+      <DeletePartModal
+        part={deletingPart}
+        onClose={() => setDeletingPart(null)}
+        onDeleted={() => {
+          setDeletingPart(null)
+          load()
+        }}
+      />
     </div>
+  )
+}
+
+function DeletePartModal({
+  part,
+  onClose,
+  onDeleted,
+}: {
+  part: Part | null
+  onClose: () => void
+  onDeleted: () => void
+}) {
+  const [working, setWorking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [blocked, setBlocked] = useState<string | null>(null)
+
+  useEffect(() => {
+    setError(null)
+    setBlocked(null)
+  }, [part])
+
+  async function handleConfirm() {
+    if (!part) return
+    setWorking(true)
+    setError(null)
+    setBlocked(null)
+
+    const [
+      { count: usedCount, error: usedError },
+      { count: serialCount, error: serialError },
+      { count: poItemCount, error: poItemError },
+      { count: warrantyCount, error: warrantyError },
+    ] = await Promise.all([
+      supabase.from('job_parts_used').select('id', { count: 'exact', head: true }).eq('part_id', part.id),
+      supabase.from('part_serials').select('id', { count: 'exact', head: true }).eq('part_id', part.id),
+      supabase.from('po_items').select('id', { count: 'exact', head: true }).eq('part_id', part.id),
+      supabase.from('warranties').select('id', { count: 'exact', head: true }).eq('part_id', part.id),
+    ])
+
+    if (usedError || serialError || poItemError || warrantyError) {
+      setWorking(false)
+      setError((usedError ?? serialError ?? poItemError ?? warrantyError)?.message ?? 'Could not check linked records.')
+      return
+    }
+
+    const hasLinkedRecords = (usedCount ?? 0) > 0 || (serialCount ?? 0) > 0 || (poItemCount ?? 0) > 0 || (warrantyCount ?? 0) > 0
+
+    if (hasLinkedRecords) {
+      setWorking(false)
+      setBlocked('Cannot delete — this part has usage/order history.')
+      return
+    }
+
+    const { error } = await supabase.from('parts').delete().eq('id', part.id)
+    setWorking(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    onDeleted()
+  }
+
+  return (
+    <Modal open={!!part} onClose={onClose} title="Delete Part" size="sm">
+      <div className="space-y-4">
+        {!blocked && (
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            This will permanently delete <span className="font-medium">{part?.name}</span> from the catalog. This cannot be
+            undone.
+          </p>
+        )}
+        {blocked && <p className="text-sm text-danger-600">{blocked}</p>}
+        {error && <p className="text-sm text-danger-600">{error}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            {blocked ? 'Close' : 'Cancel'}
+          </Button>
+          {!blocked && (
+            <Button type="button" variant="danger" onClick={handleConfirm} disabled={working}>
+              {working ? 'Checking…' : 'Delete Part'}
+            </Button>
+          )}
+        </div>
+      </div>
+    </Modal>
   )
 }

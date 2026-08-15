@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Printer } from 'lucide-react'
+import { ArrowLeft, Printer, Pencil, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { SellRequest, SellRequestStatus } from '../../types'
-import { SELL_REQUEST_STATUS_FLOW, SELL_REQUEST_STATUS_LABELS } from '../../types'
+import { SELL_REQUEST_STATUS_FLOW, SELL_REQUEST_STATUS_LABELS, DEVICE_ISSUE_OPTIONS } from '../../types'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/Badge'
 import { FullPageSpinner } from '../../components/ui/Spinner'
+import { Modal } from '../../components/ui/Modal'
 import { FormRow, Input, Select, TextArea } from '../../components/ui/Field'
+import { ChipSelect } from '../../components/ui/ChipSelect'
 
 const CONDITION_ITEMS = [
   { key: 'powers_on', label: 'Powers on normally' },
@@ -20,6 +22,9 @@ const CONDITION_ITEMS = [
   { key: 'no_water_damage', label: 'No water damage' },
   { key: 'body_intact', label: 'Body/back glass not cracked' },
 ]
+
+const DEVICE_TYPES = ['iPhone', 'iPad', 'MacBook', 'iMac', 'Apple Watch', 'AirPods', 'Other']
+const ACCESSORY_OPTIONS = ['Charger', 'Cable', 'Box', 'Case', 'Original Bill', 'Other']
 
 export function SellRequestDetail() {
   const { id } = useParams()
@@ -33,7 +38,10 @@ export function SellRequestDetail() {
   const [inspectionNotes, setInspectionNotes] = useState('')
   const [payoutAmount, setPayoutAmount] = useState(0)
   const [payoutMethod, setPayoutMethod] = useState('cash')
+  const [showEdit, setShowEdit] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
   const canManage = profile && ['super_admin', 'admin', 'front_desk'].includes(profile.role)
+  const canDelete = profile && ['super_admin', 'admin'].includes(profile.role)
 
   async function load() {
     if (!id) return
@@ -115,6 +123,16 @@ export function SellRequestDetail() {
             <Button variant="secondary" onClick={() => navigate(`/print/buyback/${request.id}`)}>
               <Printer className="h-4 w-4" /> Print Receipt
             </Button>
+            {canManage && (
+              <Button variant="secondary" onClick={() => setShowEdit(true)}>
+                <Pencil className="h-4 w-4" /> Edit Request
+              </Button>
+            )}
+            {canDelete && (
+              <Button variant="danger" onClick={() => setShowDelete(true)}>
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
+            )}
           </>
         }
       />
@@ -287,6 +305,261 @@ export function SellRequestDetail() {
           )}
         </div>
       </div>
+
+      <EditSellRequestModal
+        request={request}
+        open={showEdit}
+        onClose={() => setShowEdit(false)}
+        onSaved={() => {
+          setShowEdit(false)
+          load()
+        }}
+      />
+      <DeleteSellRequestModal
+        request={showDelete ? request : null}
+        onClose={() => setShowDelete(false)}
+        onDeleted={() => {
+          setShowDelete(false)
+          navigate('/sell-requests')
+        }}
+      />
     </div>
+  )
+}
+
+function EditSellRequestModal({
+  request,
+  open,
+  onClose,
+  onSaved,
+}: {
+  request: SellRequest | null
+  open: boolean
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [deviceType, setDeviceType] = useState('iPhone')
+  const [model, setModel] = useState('')
+  const [color, setColor] = useState('')
+  const [storage, setStorage] = useState('')
+  const [condition, setCondition] = useState<Record<string, boolean>>({})
+  const [accessories, setAccessories] = useState<string[]>([])
+  const [deviceIssues, setDeviceIssues] = useState<string[]>([])
+  const [issueDetails, setIssueDetails] = useState('')
+  const [details, setDetails] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!request || !open) return
+    setName(request.seller_name)
+    setPhone(request.seller_phone)
+    setEmail(request.seller_email ?? '')
+    setDeviceType(request.device_type)
+    setModel(request.model)
+    setColor(request.color ?? '')
+    setStorage(request.storage_capacity ?? '')
+    setCondition(request.condition_self_report ?? {})
+    setAccessories(request.accessories ?? [])
+    setDeviceIssues(request.device_issues ?? [])
+    setIssueDetails(request.issue_details ?? '')
+    setDetails(request.additional_details ?? '')
+    setError(null)
+  }, [request, open])
+
+  async function handleSubmit() {
+    if (!request) return
+    if (!name || !phone || !model) {
+      setError('Please fill in seller name, phone, and device model.')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    const { error } = await supabase
+      .from('sell_requests')
+      .update({
+        seller_name: name,
+        seller_phone: phone,
+        seller_email: email || null,
+        device_type: deviceType,
+        model,
+        color: color || null,
+        storage_capacity: storage || null,
+        condition_self_report: condition,
+        accessories,
+        device_issues: deviceIssues,
+        issue_details: issueDetails || null,
+        additional_details: details || null,
+      })
+      .eq('id', request.id)
+    setSaving(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    onSaved()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Edit Sell Request" size="lg">
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormRow label="Seller name" required>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </FormRow>
+          <FormRow label="Phone" required>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </FormRow>
+        </div>
+        <FormRow label="Email">
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </FormRow>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormRow label="Device type" required>
+            <Select value={deviceType} onChange={(e) => setDeviceType(e.target.value)}>
+              {DEVICE_TYPES.map((t) => (
+                <option key={t}>{t}</option>
+              ))}
+            </Select>
+          </FormRow>
+          <FormRow label="Model" required>
+            <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. iPhone 13 Pro" />
+          </FormRow>
+          <FormRow label="Color">
+            <Input value={color} onChange={(e) => setColor(e.target.value)} />
+          </FormRow>
+          <FormRow label="Storage">
+            <Input value={storage} onChange={(e) => setStorage(e.target.value)} placeholder="e.g. 128GB" />
+          </FormRow>
+        </div>
+
+        <FormRow label="Condition self-report">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {CONDITION_ITEMS.map((item) => (
+              <label key={item.key} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={!!condition[item.key]}
+                  onChange={(e) => setCondition((c) => ({ ...c, [item.key]: e.target.checked }))}
+                  className="h-4 w-4 rounded border-slate-300 text-primary-600"
+                />
+                {item.label}
+              </label>
+            ))}
+          </div>
+        </FormRow>
+
+        <FormRow label="Accessories included">
+          <ChipSelect options={ACCESSORY_OPTIONS} value={accessories} onChange={setAccessories} />
+        </FormRow>
+
+        <FormRow label="Device Issue / Damage Details">
+          <ChipSelect options={[...DEVICE_ISSUE_OPTIONS]} value={deviceIssues} onChange={setDeviceIssues} />
+        </FormRow>
+
+        <FormRow label="Describe the issue(s)">
+          <TextArea rows={2} value={issueDetails} onChange={(e) => setIssueDetails(e.target.value)} />
+        </FormRow>
+
+        <FormRow label="Additional details">
+          <TextArea rows={3} value={details} onChange={(e) => setDetails(e.target.value)} />
+        </FormRow>
+
+        {error && <p className="text-sm text-danger-600">{error}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSubmit} disabled={saving}>
+            {saving ? 'Saving…' : 'Save Changes'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function DeleteSellRequestModal({
+  request,
+  onClose,
+  onDeleted,
+}: {
+  request: SellRequest | null
+  onClose: () => void
+  onDeleted: () => void
+}) {
+  const [working, setWorking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setError(null)
+  }, [request])
+
+  async function handleConfirm() {
+    if (!request) return
+    setWorking(true)
+    setError(null)
+
+    const [{ count: inspectionCount, error: inspectionError }, { count: payoutCount, error: payoutError }, { count: refurbCount, error: refurbError }] =
+      await Promise.all([
+        supabase.from('sell_request_inspection').select('id', { count: 'exact', head: true }).eq('sell_request_id', request.id),
+        supabase.from('sell_request_payouts').select('id', { count: 'exact', head: true }).eq('sell_request_id', request.id),
+        supabase.from('refurb_items').select('id', { count: 'exact', head: true }).eq('sell_request_id', request.id),
+      ])
+
+    if (inspectionError || payoutError || refurbError) {
+      setWorking(false)
+      setError((inspectionError ?? payoutError ?? refurbError)?.message ?? 'Could not check linked records.')
+      return
+    }
+
+    if ((inspectionCount ?? 0) > 0 || (payoutCount ?? 0) > 0 || (refurbCount ?? 0) > 0) {
+      setWorking(false)
+      setError('Cannot delete — this request has inspection/payout/refurbishment records on file.')
+      return
+    }
+
+    const { data: photos } = await supabase.from('sell_request_photos').select('id, storage_path').eq('sell_request_id', request.id)
+    if (photos && photos.length > 0) {
+      try {
+        const paths = photos.map((p) => p.storage_path).filter(Boolean)
+        if (paths.length > 0) await supabase.storage.from('sell-request-photos').remove(paths)
+      } catch {
+        // best-effort only — storage cleanup failures should not block deletion
+      }
+      await supabase.from('sell_request_photos').delete().eq('sell_request_id', request.id)
+    }
+
+    const { error } = await supabase.from('sell_requests').delete().eq('id', request.id)
+    setWorking(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    onDeleted()
+  }
+
+  return (
+    <Modal open={!!request} onClose={onClose} title="Delete Sell Request" size="sm">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          This will permanently delete this sell request{request ? ` (${request.request_number})` : ''} and its photos. This
+          action cannot be undone.
+        </p>
+        {error && <p className="text-sm text-danger-600">{error}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" variant="danger" onClick={handleConfirm} disabled={working}>
+            {working ? 'Deleting…' : 'Delete Request'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   )
 }

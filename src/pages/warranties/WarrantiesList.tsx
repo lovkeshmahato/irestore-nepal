@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShieldPlus, Printer, Plus } from 'lucide-react'
+import { ShieldPlus, Printer, Plus, Pencil, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import type { Warranty, WarrantyClaim, WarrantyStatus } from '../../types'
+import type { Warranty, WarrantyClaim, WarrantyClaimStatus, WarrantyStatus } from '../../types'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Badge, StatusBadge } from '../../components/ui/Badge'
@@ -24,6 +24,8 @@ export function WarrantiesList() {
   const [claims, setClaims] = useState<WarrantyClaim[]>([])
   const [claimingWarranty, setClaimingWarranty] = useState<WarrantyRow | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [editingClaim, setEditingClaim] = useState<WarrantyClaim | null>(null)
+  const [deletingClaim, setDeletingClaim] = useState<WarrantyClaim | null>(null)
   const canManage = profile && ['super_admin', 'admin', 'front_desk'].includes(profile.role)
 
   async function load() {
@@ -123,6 +125,24 @@ export function WarrantiesList() {
                     <span className="text-xs text-slate-400">{new Date(c.created_at).toLocaleDateString()}</span>
                   </div>
                   <p className="text-slate-700 dark:text-slate-200">{c.issue_description}</p>
+                  {canManage && (
+                    <div className="mt-1 flex justify-end gap-1">
+                      <button
+                        onClick={() => setEditingClaim(c)}
+                        className="flex min-h-9 min-w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+                        title="Edit claim"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeletingClaim(c)}
+                        className="flex min-h-9 min-w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-danger-50 hover:text-danger-600 dark:hover:bg-danger-600/20"
+                        title="Delete claim"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -143,6 +163,22 @@ export function WarrantiesList() {
         onClose={() => setShowCreate(false)}
         onSaved={() => {
           setShowCreate(false)
+          load()
+        }}
+      />
+      <EditClaimModal
+        claim={editingClaim}
+        onClose={() => setEditingClaim(null)}
+        onSaved={() => {
+          setEditingClaim(null)
+          load()
+        }}
+      />
+      <DeleteClaimModal
+        claim={deletingClaim}
+        onClose={() => setDeletingClaim(null)}
+        onDeleted={() => {
+          setDeletingClaim(null)
           load()
         }}
       />
@@ -338,6 +374,150 @@ function ClaimModal({
           </Button>
           <Button type="button" onClick={handleSubmit} disabled={saving || !issue.trim()}>
             {saving ? 'Filing…' : 'File Claim'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function EditClaimModal({
+  claim,
+  onClose,
+  onSaved,
+}: {
+  claim: WarrantyClaim | null
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [jobSheets, setJobSheets] = useState<JobSheetOption[]>([])
+  const [issue, setIssue] = useState('')
+  const [status, setStatus] = useState<WarrantyClaimStatus>('open')
+  const [reworkJobSheetId, setReworkJobSheetId] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!claim) return
+    setIssue(claim.issue_description)
+    setStatus(claim.status)
+    setReworkJobSheetId(claim.rework_job_sheet_id ?? '')
+    setError(null)
+    supabase
+      .from('job_sheets')
+      .select('id, job_number, customers(full_name)')
+      .order('created_at', { ascending: false })
+      .limit(150)
+      .then(({ data }) => setJobSheets((data ?? []) as unknown as JobSheetOption[]))
+  }, [claim])
+
+  async function handleSubmit() {
+    if (!claim) return
+    if (!issue.trim()) {
+      setError('Describe the issue.')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    const wasResolved = claim.status === 'resolved'
+    const nowResolved = status === 'resolved'
+    const { error } = await supabase
+      .from('warranty_claims')
+      .update({
+        issue_description: issue,
+        status,
+        rework_job_sheet_id: reworkJobSheetId || null,
+        resolved_at: nowResolved ? new Date().toISOString() : wasResolved && !nowResolved ? null : claim.resolved_at,
+      })
+      .eq('id', claim.id)
+    setSaving(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    onSaved()
+  }
+
+  return (
+    <Modal open={!!claim} onClose={onClose} title="Edit Warranty Claim">
+      <div className="space-y-4">
+        <FormRow label="Issue reported by customer" required>
+          <TextArea rows={3} value={issue} onChange={(e) => setIssue(e.target.value)} />
+        </FormRow>
+        <FormRow label="Status">
+          <Select value={status} onChange={(e) => setStatus(e.target.value as WarrantyClaimStatus)}>
+            <option value="open">Open</option>
+            <option value="in_progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="rejected">Rejected</option>
+          </Select>
+        </FormRow>
+        <FormRow label="Rework Job Sheet">
+          <Select value={reworkJobSheetId} onChange={(e) => setReworkJobSheetId(e.target.value)}>
+            <option value="">-- None --</option>
+            {jobSheets.map((j) => (
+              <option key={j.id} value={j.id}>
+                {j.job_number} — {j.customers?.full_name}
+              </option>
+            ))}
+          </Select>
+        </FormRow>
+        {error && <p className="text-sm text-danger-600">{error}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSubmit} disabled={saving}>
+            {saving ? 'Saving…' : 'Save Changes'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function DeleteClaimModal({
+  claim,
+  onClose,
+  onDeleted,
+}: {
+  claim: WarrantyClaim | null
+  onClose: () => void
+  onDeleted: () => void
+}) {
+  const [working, setWorking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setError(null)
+  }, [claim])
+
+  async function handleConfirm() {
+    if (!claim) return
+    setWorking(true)
+    setError(null)
+    const { error } = await supabase.from('warranty_claims').delete().eq('id', claim.id)
+    setWorking(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    onDeleted()
+  }
+
+  return (
+    <Modal open={!!claim} onClose={onClose} title="Delete Warranty Claim" size="sm">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          This will permanently delete this warranty claim. This action cannot be undone.
+        </p>
+        {error && <p className="text-sm text-danger-600">{error}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" variant="danger" onClick={handleConfirm} disabled={working}>
+            {working ? 'Deleting…' : 'Delete Claim'}
           </Button>
         </div>
       </div>

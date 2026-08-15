@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Printer, Plus } from 'lucide-react'
+import { ArrowLeft, Printer, Plus, Pencil, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Invoice, Payment, CreditNote } from '../../types'
@@ -31,6 +31,11 @@ export function InvoiceDetail() {
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>([])
   const [showPayment, setShowPayment] = useState(false)
   const [showCredit, setShowCredit] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
+
+  const canEdit = profile && ['super_admin', 'admin', 'front_desk', 'accountant'].includes(profile.role)
+  const canDelete = profile?.role === 'super_admin'
 
   async function load() {
     if (!id) return
@@ -72,6 +77,16 @@ export function InvoiceDetail() {
             {invoice.balance_due > 0 && (
               <Button onClick={() => setShowPayment(true)}>
                 <Plus className="h-4 w-4" /> Record Payment
+              </Button>
+            )}
+            {canEdit && (
+              <Button variant="secondary" onClick={() => setShowEdit(true)}>
+                <Pencil className="h-4 w-4" /> Edit
+              </Button>
+            )}
+            {canDelete && (
+              <Button variant="danger" onClick={() => setShowDelete(true)}>
+                <Trash2 className="h-4 w-4" /> Delete
               </Button>
             )}
           </>
@@ -213,6 +228,21 @@ export function InvoiceDetail() {
           load()
         }}
       />
+      <EditInvoiceModal
+        open={showEdit}
+        invoice={invoice}
+        onClose={() => setShowEdit(false)}
+        onSaved={() => {
+          setShowEdit(false)
+          load()
+        }}
+      />
+      <DeleteInvoiceModal
+        open={showDelete}
+        invoice={invoice}
+        onClose={() => setShowDelete(false)}
+        onDeleted={() => navigate('/invoices')}
+      />
     </div>
   )
 }
@@ -321,6 +351,320 @@ function CreditNoteModal({
           </Button>
           <Button type="button" onClick={handleSubmit} disabled={saving}>
             {saving ? 'Saving…' : 'Add Credit Note'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function clampNonNegative(v: number) {
+  return Number.isFinite(v) && v >= 0 ? v : 0
+}
+
+function formatNpr(value: number) {
+  return `NPR ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function EditInvoiceModal({
+  open,
+  invoice,
+  onClose,
+  onSaved,
+}: {
+  open: boolean
+  invoice: Invoice
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [repairCharge, setRepairCharge] = useState(0)
+  const [partsCost, setPartsCost] = useState(0)
+  const [labourCharge, setLabourCharge] = useState(0)
+  const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed')
+  const [discountValue, setDiscountValue] = useState(0)
+  const [taxRate, setTaxRate] = useState(13)
+  const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [notes, setNotes] = useState('')
+  const [showVat, setShowVat] = useState(true)
+  const [showLogo, setShowLogo] = useState(true)
+  const [showAddress, setShowAddress] = useState(true)
+  const [showPhone, setShowPhone] = useState(true)
+  const [showEmail, setShowEmail] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setRepairCharge(invoice.repair_charge)
+    setPartsCost(invoice.parts_cost)
+    setLabourCharge(invoice.labour_charge)
+    setDiscountType(invoice.discount_type)
+    setDiscountValue(invoice.discount_value)
+    setTaxRate(invoice.vat_rate)
+    setPaymentMethod(invoice.payment_method ?? 'cash')
+    setNotes(invoice.notes ?? '')
+    setShowVat(invoice.doc_show_vat)
+    setShowLogo(invoice.doc_show_logo)
+    setShowAddress(invoice.doc_show_address)
+    setShowPhone(invoice.doc_show_phone)
+    setShowEmail(invoice.doc_show_email)
+    setError(null)
+  }, [open, invoice])
+
+  function handleDiscountValueChange(v: number) {
+    const nonNeg = clampNonNegative(v)
+    setDiscountValue(discountType === 'percent' ? Math.min(nonNeg, 100) : nonNeg)
+  }
+
+  const subtotal = repairCharge + partsCost + labourCharge
+  const rawDiscount = discountType === 'fixed' ? discountValue : (subtotal * discountValue) / 100
+  const discount = Math.min(Math.max(rawDiscount, 0), subtotal)
+  const taxableAmount = Math.max(subtotal - discount, 0)
+  const vat = (taxableAmount * taxRate) / 100
+  const grandTotal = Math.max(taxableAmount + vat, 0)
+  const willBeOverpaid = invoice.amount_paid > grandTotal
+
+  async function handleSubmit() {
+    if (subtotal <= 0) {
+      setError('Enter at least one charge greater than zero.')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    const newBalanceDue = Math.max(grandTotal - invoice.amount_paid, 0)
+    const { error } = await supabase
+      .from('invoices')
+      .update({
+        repair_charge: repairCharge,
+        parts_cost: partsCost,
+        labour_charge: labourCharge,
+        discount_type: discountType,
+        discount_value: discountValue,
+        discount_amount: discount,
+        vat_rate: taxRate,
+        subtotal,
+        vat_amount: vat,
+        total: grandTotal,
+        balance_due: newBalanceDue,
+        payment_method: paymentMethod,
+        notes: notes || null,
+        doc_show_vat: showVat,
+        doc_show_logo: showLogo,
+        doc_show_address: showAddress,
+        doc_show_phone: showPhone,
+        doc_show_email: showEmail,
+      })
+      .eq('id', invoice.id)
+    setSaving(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    onSaved()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Edit Invoice" size="xl">
+      <div className="space-y-6">
+        <div>
+          <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Charges</h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <FormRow label="Repair Charge (NPR)">
+              <Input type="number" min={0} value={repairCharge} onChange={(e) => setRepairCharge(clampNonNegative(Number(e.target.value)))} />
+            </FormRow>
+            <FormRow label="Parts Cost (NPR)">
+              <Input type="number" min={0} value={partsCost} onChange={(e) => setPartsCost(clampNonNegative(Number(e.target.value)))} />
+            </FormRow>
+            <FormRow label="Labour Charge (NPR)">
+              <Input type="number" min={0} value={labourCharge} onChange={(e) => setLabourCharge(clampNonNegative(Number(e.target.value)))} />
+            </FormRow>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Discount & Tax</h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <FormRow label="Discount Type">
+              <Select
+                value={discountType}
+                onChange={(e) => {
+                  setDiscountType(e.target.value as 'fixed' | 'percent')
+                  setDiscountValue(0)
+                }}
+              >
+                <option value="fixed">Fixed (NPR)</option>
+                <option value="percent">Percent (%)</option>
+              </Select>
+            </FormRow>
+            <FormRow label="Discount Value">
+              <Input
+                type="number"
+                min={0}
+                max={discountType === 'percent' ? 100 : undefined}
+                value={discountValue}
+                onChange={(e) => handleDiscountValueChange(Number(e.target.value))}
+              />
+            </FormRow>
+            <FormRow label="Tax Rate (%)">
+              <Input type="number" min={0} value={taxRate} onChange={(e) => setTaxRate(clampNonNegative(Number(e.target.value)))} />
+            </FormRow>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Payment Method</h3>
+          <FormRow label="Payment Method">
+            <Select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+              {PAYMENT_METHODS.map((m) => (
+                <option key={m} value={m}>
+                  {m.replace('_', ' ')}
+                </option>
+              ))}
+            </Select>
+          </FormRow>
+        </div>
+
+        <FormRow label="Notes">
+          <TextArea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </FormRow>
+
+        <div>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Show on Document</h3>
+          <div className="flex flex-wrap gap-4">
+            {[
+              { label: 'VAT', checked: showVat, set: setShowVat },
+              { label: 'Logo', checked: showLogo, set: setShowLogo },
+              { label: 'Address', checked: showAddress, set: setShowAddress },
+              { label: 'Phone', checked: showPhone, set: setShowPhone },
+              { label: 'Email', checked: showEmail, set: setShowEmail },
+            ].map((item) => (
+              <label
+                key={item.label}
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  onChange={(e) => item.set(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-primary-600"
+                />
+                {item.label}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-1.5 rounded-lg bg-slate-50 p-4 text-sm dark:bg-slate-800/50">
+          <div className="flex justify-between">
+            <span className="text-slate-500">Subtotal</span>
+            <span className="text-slate-800 dark:text-slate-200">{formatNpr(subtotal)}</span>
+          </div>
+          {discount > 0 && (
+            <div className="flex justify-between">
+              <span className="text-slate-500">Discount</span>
+              <span className="text-danger-600">-{formatNpr(discount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="text-slate-500">VAT ({taxRate}%)</span>
+            <span className="text-slate-800 dark:text-slate-200">{formatNpr(vat)}</span>
+          </div>
+          <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold text-primary-600 dark:border-slate-700">
+            <span>Grand Total</span>
+            <span>{formatNpr(grandTotal)}</span>
+          </div>
+          <div className="flex justify-between text-slate-500">
+            <span>Already Paid</span>
+            <span>{formatNpr(invoice.amount_paid)}</span>
+          </div>
+        </div>
+
+        {willBeOverpaid && (
+          <p className="text-sm text-warning-600">
+            New total is less than amount already paid; the invoice will show as overpaid.
+          </p>
+        )}
+        {error && <p className="text-sm text-danger-600">{error}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSubmit} disabled={saving}>
+            {saving ? 'Saving…' : 'Save Changes'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function DeleteInvoiceModal({
+  open,
+  invoice,
+  onClose,
+  onDeleted,
+}: {
+  open: boolean
+  invoice: Invoice
+  onClose: () => void
+  onDeleted: () => void
+}) {
+  const [working, setWorking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [blocked, setBlocked] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setError(null)
+    setBlocked(null)
+  }, [open])
+
+  async function handleConfirm() {
+    setWorking(true)
+    setError(null)
+    setBlocked(null)
+
+    const { data: pays, error: payError } = await supabase.from('payments').select('amount').eq('invoice_id', invoice.id)
+    if (payError) {
+      setWorking(false)
+      setError(payError.message)
+      return
+    }
+
+    const totalPaid = (pays ?? []).reduce((sum, p) => sum + p.amount, 0)
+    if (totalPaid > 0) {
+      setWorking(false)
+      setBlocked(
+        `Cannot delete — NPR ${totalPaid.toLocaleString()} has been recorded as paid against this invoice. This financial record should not be removed; consider a credit note or contact an administrator.`
+      )
+      return
+    }
+
+    const { error } = await supabase.from('invoices').delete().eq('id', invoice.id)
+    setWorking(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    onDeleted()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Delete Invoice" size="sm">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          This will <span className="font-semibold text-danger-600">permanently delete</span> invoice{' '}
+          <span className="font-semibold">{invoice.invoice_number}</span>. This is only allowed when no payments have been
+          recorded against it. This action cannot be undone.
+        </p>
+        {error && <p className="text-sm text-danger-600">{error}</p>}
+        {blocked && <p className="text-sm text-danger-600">{blocked}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" variant="danger" onClick={handleConfirm} disabled={working || !!blocked}>
+            {working ? 'Deleting…' : 'Delete Permanently'}
           </Button>
         </div>
       </div>
